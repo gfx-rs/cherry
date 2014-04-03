@@ -1,0 +1,11 @@
+tmp
+cherry.exe
+Cherry.db
+*.db-journal
+pkg
+src
+server.exe
+
+test/results
+test/_tmp.db
+test/*.pyc
