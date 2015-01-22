@@ -37,8 +37,8 @@
 }
 
 [treecontrol] li .tree-label {
-    cursor: pointer;
-    display: inline;
+    display: inline-block;
+	cursor: pointer;
 }
 
 
