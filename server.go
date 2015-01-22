@@ -276,7 +276,8 @@ func setUpFileMappings() {
 		{"third_party/angular-spinner",			"/lib/angular-spinner/"},
 		{"third_party/bootstrap",				"/lib/bootstrap/"},
 		{"third_party/sax/lib",					"/lib/sax/"},
-		{"third_party/underscore",				"/lib/underscore/"}}
+		{"third_party/underscore",				"/lib/underscore/"},
+ 		{"third_party/angular-tree-control",	"/lib/angular-tree-control/"}}
 
 	for _, mapping := range serverFileMappings {
 		bootStrapFs := http.Dir(mapping.SourceRootDir)
