@@ -5,6 +5,9 @@ Cherry.db
 pkg
 src
 server.exe
+server
+
+data/*
 
 test/results
 test/_tmp.db
