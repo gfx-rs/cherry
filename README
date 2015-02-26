@@ -31,7 +31,21 @@ is maintained by mingw-w64 project (http://mingw-w64.sourceforge.net/).
 
 - Install 64-bit Go distribution.
 
-- Re-run go get ...go-sqlite3.
+
+Deqp integration
+----------------
+
+Cherry has been built for running deqp GPU tests. To get the deqp test lists for cherry:
+
+1. mkdir <path-to-cherry>/data
+
+2. Go to deqp dir
+
+3. python scripts/build_caselists.py <path-to-cherry>/data
+
+This will build deqp locally and dump the caselist from current binaries to the data dir.
+
+The process should be repeated every time new tests have been added.
 
 
 Running Cherry
