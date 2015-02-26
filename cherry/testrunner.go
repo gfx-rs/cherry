@@ -28,6 +28,7 @@ import (
 	"io"
 	"bufio"
 	"bytes"
+	"os"
 )
 
 // Util
@@ -58,7 +59,6 @@ type TestRunner struct {
 
 	// \todo [petri] these should be dynamic, not loaded at init time!
 	testPackages		map[string]TestPackageInfo
-	testSetList			*TestSetList
 	fullTestCaseList	[]string
 
 	// Control channel for batch executions, read in runner.handleQueue().
@@ -523,11 +523,23 @@ func (runner *TestRunner) filterPendingCasePaths (batchResultId string, testCase
 	return pendingTestCasePaths
 }
 
-func importTestPackage (packageName string, binaryName string, binaryDir string, testCaseFileName string) TestPackageInfo {
+func importTestPackage (packageName string, binaryName string, binaryDir string, testCaseFileName string) *TestPackageInfo {
 	// Import test case tree.
 	log.Printf("[config] importTestPackage('%s')\n", packageName)
-	testCaseTree, err := importTestCaseTree(testCaseFileName, packageName)
-	if err != nil { panic(err) }
+
+	// Open file.
+	xmlFile, err := os.Open(testCaseFileName)
+	if err != nil {
+		log.Printf("Failed to open test case file (%s : %s)\n", testCaseFileName, err.Error())
+		return nil
+	}
+	defer xmlFile.Close()
+
+	testCaseTree, err := importTestCaseTree(xmlFile, packageName)
+	if err != nil {
+		log.Printf("Failed to parse test case file (%s : %s)\n", testCaseFileName, err.Error())
+		return nil
+	}
 
 	// Create test package.
 	testPackage := TestPackageInfo {
@@ -538,17 +550,26 @@ func importTestPackage (packageName string, binaryName string, binaryDir string,
 		testCaseList:	testCaseTree.GetLinearizedList(),
 	}
 
-	return testPackage
+	return &testPackage
 }
 
 func NewTestRunner (rtdbServer *rtdb.Server) *TestRunner {
+	var dataDir = "data/"
+
 	// Import all test package test case lists.
+	packageList := []*TestPackageInfo{}
+	packageList = append(packageList, importTestPackage("dE-IT", "de-internal-tests", "internal", dataDir + "dE-IT-cases.xml"))
+	packageList = append(packageList, importTestPackage("dEQP-EGL", "deqp-egl", "egl", dataDir + "dEQP-EGL-cases.xml"))
+	packageList = append(packageList, importTestPackage("dEQP-GLES2", "deqp-gles2", "gles2", dataDir + "dEQP-GLES2-cases.xml"))
+	packageList = append(packageList, importTestPackage("dEQP-GLES3", "deqp-gles3", "gles3", dataDir + "dEQP-GLES3-cases.xml"))
+	packageList = append(packageList, importTestPackage("dEQP-GLES31", "deqp-gles31", "gles31", dataDir + "dEQP-GLES31-cases.xml"))
+
 	testPackages := make(map[string]TestPackageInfo, 0)
-	testPackages["dE-IT"]		= importTestPackage("dE-IT", "de-internal-tests", "internal", "data/dE-IT-cases.xml")
-	testPackages["dEQP-EGL"]	= importTestPackage("dEQP-EGL", "deqp-egl", "egl", "data/dEQP-EGL-cases.xml")
-	testPackages["dEQP-GLES2"]	= importTestPackage("dEQP-GLES2", "deqp-gles2", "gles2", "data/dEQP-GLES2-cases.xml")
-	testPackages["dEQP-GLES3"]	= importTestPackage("dEQP-GLES3", "deqp-gles3", "gles3", "data/dEQP-GLES3-cases.xml")
-	testPackages["dEQP-GLES31"]	= importTestPackage("dEQP-GLES31", "deqp-gles31", "gles31", "data/dEQP-GLES31-cases.xml")
+	for _, testPackage := range packageList {
+		if testPackage != nil {
+			testPackages[testPackage.name] = *testPackage
+		}
+	}
 
 	// Concatenate all test case names to one big list.
 	fullTestCaseList := make([]string, 0)
@@ -557,17 +578,12 @@ func NewTestRunner (rtdbServer *rtdb.Server) *TestRunner {
 	}
 	log.Printf("[config] total cases imported: %d\n", len(fullTestCaseList))
 
-	// Import test sets.
-	testSetList, err := importTestSets("data/dEQP-GLES2-TestSets.xml")
-	if err != nil { panic(err) }
-
 	queueControl := make(chan batchExecQueueControl)
 	importControl := make(chan batchImportControl)
 
 	runner := &TestRunner {
 		rtdbServer:			rtdbServer,
 		testPackages:		testPackages,
-		testSetList:		testSetList,
 		fullTestCaseList:	fullTestCaseList,
 		queueControl:		queueControl,
 		importControl:		importControl,

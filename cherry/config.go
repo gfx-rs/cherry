@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"io"
 )
 
 // Data types for importing dEQP-*-cases.xml
@@ -77,19 +78,14 @@ type CandyConfig struct {
 
 // Import dEQP-*-cases.xml
 
-func importTestCaseTree (fileName string, packageName string) (*TestCaseTree, error) {
-	// Open file.
-	xmlFile, err := os.Open(fileName)
-	if err != nil { return nil, err }
-	defer xmlFile.Close()
-
+func importTestCaseTree (treeXml io.Reader, packageName string) (*TestCaseTree, error) {
 	// Init tree.
 	tree := TestCaseTree{}
 	tree.PackageName = packageName
 
 	// Parse XML.
-	decoder := xml.NewDecoder(xmlFile)
-	err = decoder.Decode(&tree)
+	decoder := xml.NewDecoder(treeXml)
+	err := decoder.Decode(&tree)
 	if err != nil { return nil, err }
 
 	// Return.

@@ -20,10 +20,23 @@ import (
 	"fmt"
 	"testing"
 	"time"
+	"strings"
 )
 
 func TestConfigLoader (t *testing.T) {
-	tree, err := importTestCaseTree("../data/dEQP-GLES2-cases.xml", "dEQP-GLES2")
+	var gles2Xml = `<?xml version="1.0" encoding="UTF-8"?>
+<TestCaseList>
+ <TestCase Name="info" CaseType="TestGroup" Description="Platform information queries">
+  <TestCase Name="vendor" CaseType="SelfValidate" Description="Vendor String" />
+  <TestCase Name="renderer" CaseType="SelfValidate" Description="Renderer String" />
+  <TestCase Name="version" CaseType="SelfValidate" Description="Version String" />
+  <TestCase Name="shading_language_version" CaseType="SelfValidate" Description="Shading Language Version String" />
+  <TestCase Name="extensions" CaseType="SelfValidate" Description="Supported Extensions" />
+  <TestCase Name="render_target" CaseType="SelfValidate" Description="Render Target Info" />
+</TestCase>
+</TestCaseList>`
+
+	tree, err := importTestCaseTree(strings.NewReader(gles2Xml), "dEQP-GLES2")
 	if err != nil {
 		t.Errorf("importTestCaseTree() failed: %s\n", err)
 	}
