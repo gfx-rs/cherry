@@ -54,7 +54,7 @@
 
 	angular.module('treeControl', [])
 
-	.directive('treecontrol', ['$compile', function($compile)
+	.directive('treecontrol', ['$compile', '$detail', function($compile, $detail)
 	{
 		return {
 			restrict:	'EA',
@@ -89,6 +89,13 @@
 				$scope.nodeHeadClicked = function(node, event)
 				{
 					$scope.nodeExpanded[node.id] = !$scope.nodeExpanded[node.id];
+
+					// if expanding and only one visible child, expand that too
+					if ($scope.nodeExpanded(node))
+					{
+						$detail.expandOnlyChild($scope, node);
+					}
+
 					event.stopPropagation();
 				};
 
@@ -255,13 +262,16 @@
 		}
 	})
 
-	.directive("treeTransclude", function()
+	.directive("treeTransclude", [ "$detail", function($detail)
 	{
 		return {
 			link: function(scope, element, attrs)
 			{
 				if (scope.node.initiallyExpanded && !scope.nodeExpanded.hasOwnProperty(scope.node.id))
+				{
 					scope.nodeExpanded[scope.node.id] = true;
+					$detail.expandOnlyChild(scope, scope.node);
+				}
 
 				// create a scope for the transclusion, whos parent is the parent of the tree control
 				scope.transcludeScope = scope.parentScopeOfTree.$new();
@@ -279,6 +289,43 @@
 				});
 			}
 		}
+	}])
+
+	.factory("$detail", function ()
+	{
+		return {
+			expandOnlyChild: function (scope, node)
+			{
+				var _expandOnlyChild = function(node)
+				{
+					var onlyChild = undefined;
+
+					if (!node.hasOwnProperty("children"))
+						return;
+
+					for (var ndx = 0; ndx < node.children.length; ndx++)
+					{
+						var childNode = node.children[ndx];
+
+						if (!childNode.hidden && onlyChild === undefined)
+							onlyChild = childNode;
+						else if (!childNode.hidden)
+						{
+							onlyChild = undefined;
+							break;
+						}
+					}
+
+					if (onlyChild !== undefined)
+					{
+						scope.nodeExpanded[onlyChild.id] = true;
+						_expandOnlyChild(onlyChild);
+					}
+				};
+
+				_expandOnlyChild(node);
+			}
+		};
 	});
 
 })(angular);
