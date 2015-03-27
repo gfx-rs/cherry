@@ -155,13 +155,18 @@ func augmentTestCaseInfo (testCaseInfo EventTestCaseFinished) (retHeader TestCas
 	return
 }
 
-func testStatusCodeStats (status TestStatusCode) (numSuccess int, numFailure int, numOther int) {
-	isPass := status == TEST_STATUS_CODE_PASS
-	isFail := status == TEST_STATUS_CODE_FAIL
-	numSuccess	= btoi(isPass)
-	numFailure	= btoi(isFail)
-	numOther	= btoi(!isPass && !isFail)
-	return
+func testStatusCodeStatsDelta (status TestStatusCode) (delta TestCaseTreeGroupStatusDelta) {
+	return TestCaseTreeGroupStatusDelta {
+		DeltaSuccess:				btoi(status == TEST_STATUS_CODE_PASS),
+		DeltaFailure:				btoi(status == TEST_STATUS_CODE_FAIL),
+		DeltaCrash:					btoi(status == TEST_STATUS_CODE_CRASH),
+		DeltaTimeout:				btoi(status == TEST_STATUS_CODE_TIMEOUT),
+		DeltaQualityWarning:		btoi(status == TEST_STATUS_CODE_QUALITY_WARNING),
+		DeltaCompatibilityWarning:	btoi(status == TEST_STATUS_CODE_COMPATIBILITY_WARNING),
+		DeltaNotSupported:			btoi(status == TEST_STATUS_CODE_NOT_SUPPORTED),
+		DeltaResourceError:			btoi(status == TEST_STATUS_CODE_RESOURCE_ERROR),
+		DeltaInternalError:			btoi(status == TEST_STATUS_CODE_INTERNAL_ERROR),
+	}
 }
 
 func (runner *TestRunner) finishTestCase (batchResultId string, testCaseInfo EventTestCaseFinished) {
@@ -178,9 +183,9 @@ func (runner *TestRunner) finishTestCase (batchResultId string, testCaseInfo Eve
 	parts := strings.Split(testResult.Path, ".")
 	for ndx := 0; ndx < len(parts); ndx++ {
 		groupPath := strings.Join(parts[0:ndx], ".")
-		numSuccess, numFailure, numOther := testStatusCodeStats(testHeader.Status)
+		statsDelta := testStatusCodeStatsDelta(testHeader.Status)
 		groupObjId := batchResultId + "/" + groupPath
-		opSet.Call(typeTestCaseTreeGroup, groupObjId, "UpdateStats", numSuccess, numFailure, numOther)
+		opSet.Call(typeTestCaseTreeGroup, groupObjId, "UpdateStats", statsDelta)
 	}
 
 	err := runner.rtdbServer.ExecuteOpSet(opSet)
@@ -836,7 +841,7 @@ func (runner *TestRunner) ImportBatch (batchResultId string, batchResultDefaultN
 							}
 
 							{
-								numSuccess, numFailure, numOther := testStatusCodeStats(testCaseHeader.Status)
+								statsDelta := testStatusCodeStatsDelta(testCaseHeader.Status)
 								pathParts := strings.Split(testCaseResult.Path, ".")
 
 								for ndx := 0; ndx < len(pathParts); ndx++ {
@@ -850,7 +855,7 @@ func (runner *TestRunner) ImportBatch (batchResultId string, batchResultDefaultN
 									opSet.Call(typeTestCaseTreeGroup, nodeObjId, "AddCase")
 
 									if testCaseHeader.Status != TEST_STATUS_CODE_PENDING {
-										opSet.Call(typeTestCaseTreeGroup, nodeObjId, "UpdateStats", numSuccess, numFailure, numOther)
+										opSet.Call(typeTestCaseTreeGroup, nodeObjId, "UpdateStats", statsDelta)
 									}
 								}
 							}
@@ -937,7 +942,7 @@ func (runner *TestRunner) isPartiallyExecutedBatch (batchResultId string) bool {
 	err := runner.rtdbServer.GetObject(batchResultId + "/", &rootGroup)
 	if err != nil { panic(err) }
 
-	return rootGroup.NumSuccess + rootGroup.NumFailure + rootGroup.NumOther != 0
+	return rootGroup.NumResults() != 0
 }
 
 // Get the DB version of the execution log of a batch result, i.e. the entire

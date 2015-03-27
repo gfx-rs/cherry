@@ -61,7 +61,7 @@ angular.module('cherry.batchResult', [])
 			{
 				console.log('executeSubBatch() failed: ' + reason);
 			});
-		}
+		},
 	});
 
 	$scope.$watch('batchResult.status', function(status)
@@ -231,6 +231,51 @@ angular.module('cherry.batchResult', [])
 	rtdb.bind('TestCaseTreeGroup', objId, $scope);
 
 	$scope.testGroupPath = $stateParams.testGroupPath;
+
+	angular.extend($scope,
+	{
+		getNumResults: function(value)
+		{
+			if (value)
+				return	value.numSuccess				+
+						value.numFailure				+
+						value.numCrash					+
+						value.numTimeout				+
+						value.numQualityWarning			+
+						value.numCompatibilityWarning	+
+						value.numNotSupported			+
+						value.numResourceError			+
+						value.numInternalError;
+			else
+				return '0';
+		},
+
+		getResultTypePercentage: function(value)
+		{
+			if (value)
+			{
+				var numHits = 0;
+				for (var i = 1; i < arguments.length; ++i)
+					numHits += value[arguments[i]]
+				return percentageString(numHits, value.numTotalCases);
+			}
+			else
+				return '0';
+		},
+
+		getResultTypeCount: function(value)
+		{
+			if (value)
+			{
+				var numHits = 0;
+				for (var i = 1; i < arguments.length; ++i)
+					numHits += value[arguments[i]]
+				return numHits;
+			}
+			else
+				return '0';
+		},
+	});
 }])
 
 // Treeview selected group node.
@@ -246,29 +291,34 @@ angular.module('cherry.batchResult', [])
 			rtdb.bind('TestCaseTreeGroup', objId, $scope);
 		},
 
-		getSuccessPercentage: function()
+		getNumResults: function()
 		{
 			if ($scope.value)
-				return percentageString($scope.value.numSuccess, $scope.value.numTotalCases);
-			else
-				return '0';
-		},
-
-		getFailurePercentage: function()
-		{
-			if ($scope.value)
-				return percentageString($scope.value.numFailure, $scope.value.numTotalCases);
+				return	$scope.value.numSuccess					+
+						$scope.value.numFailure					+
+						$scope.value.numCrash					+
+						$scope.value.numTimeout					+
+						$scope.value.numQualityWarning			+
+						$scope.value.numCompatibilityWarning	+
+						$scope.value.numNotSupported			+
+						$scope.value.numResourceError			+
+						$scope.value.numInternalError;
 			else
 				return "0";
 		},
 
-		getOtherPercentage: function()
+		getResultTypePercentage: function()
 		{
 			if ($scope.value)
-				return percentageString($scope.value.numOther, $scope.value.numTotalCases);
+			{
+				var numHits = 0;
+				for (var i = 0; i < arguments.length; ++i)
+					numHits += $scope.value[arguments[i]]
+				return percentageString(numHits, $scope.value.numTotalCases);
+			}
 			else
 				return '0';
-		}
+		},
 	});
 }])
 

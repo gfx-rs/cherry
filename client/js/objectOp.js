@@ -134,11 +134,17 @@ function copyProperties(dst, src)
 				copyProperties(value, src);
 			},
 
-			UpdateStats: function(value, numSuccess, numFailure, numOther)
+			UpdateStats: function(value, delta)
 			{
-				value.numSuccess += numSuccess;
-				value.numFailure += numFailure;
-				value.numOther += numOther;
+				value.numSuccess				+= delta.deltaSuccess;
+				value.numFailure				+= delta.deltaFailure;
+				value.numCrash					+= delta.deltaCrash;
+				value.numTimeout				+= delta.deltaTimeout;
+				value.numQualityWarning			+= delta.deltaQualityWarning;
+				value.numCompatibilityWarning	+= delta.deltaCompatibilityWarning;
+				value.numNotSupported			+= delta.deltaNotSupported;
+				value.numResourceError			+= delta.deltaResourceError;
+				value.numInternalError			+= delta.deltaInternalError;
 			},
 
 			AddCase: function(value)

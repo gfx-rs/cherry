@@ -210,10 +210,16 @@ func (header *TestCaseHeader) SetResult (caseType TestCaseType, status TestStatu
 // TestCaseTreeGroup
 
 type TestCaseTreeGroup struct {
-	NumSuccess			int			`json:"numSuccess"`
-	NumFailure			int			`json:"numFailure"`
-	NumOther			int			`json:"numOther"`
-	NumTotalCases		int			`json:"numTotalCases"`
+	NumSuccess				int			`json:"numSuccess"`
+	NumFailure				int			`json:"numFailure"`
+	NumCrash				int			`json:"numCrash"`
+	NumTimeout				int			`json:"numTimeout"`
+	NumQualityWarning		int			`json:"numQualityWarning"`
+	NumCompatibilityWarning	int			`json:"numCompatibilityWarning"`
+	NumNotSupported			int			`json:"numNotSupported"`
+	NumResourceError		int			`json:"numResourceError"`
+	NumInternalError		int			`json:"numInternalError"`
+	NumTotalCases			int			`json:"numTotalCases"`
 }
 
 func (group *TestCaseTreeGroup) PostLoad () {
@@ -229,11 +235,43 @@ func (group *TestCaseTreeGroup) AddCase () error {
 	return nil
 }
 
-func (group *TestCaseTreeGroup) UpdateStats (numSuccess int, numFailure int, numOther int) error {
-	group.NumSuccess += numSuccess
-	group.NumFailure += numFailure
-	group.NumOther += numOther
+func (group *TestCaseTreeGroup) UpdateStats (delta TestCaseTreeGroupStatusDelta) error {
+	group.NumSuccess				+= delta.DeltaSuccess;
+	group.NumFailure				+= delta.DeltaFailure;
+	group.NumCrash				    += delta.DeltaCrash;
+	group.NumTimeout				+= delta.DeltaTimeout;
+	group.NumQualityWarning		    += delta.DeltaQualityWarning;
+	group.NumCompatibilityWarning	+= delta.DeltaCompatibilityWarning;
+	group.NumNotSupported			+= delta.DeltaNotSupported;
+	group.NumResourceError		    += delta.DeltaResourceError;
+	group.NumInternalError		    += delta.DeltaInternalError;
 	return nil
+}
+
+func (group *TestCaseTreeGroup) NumResults () int {
+	return  group.NumSuccess				+
+			group.NumFailure				+
+			group.NumCrash					+
+			group.NumTimeout				+
+			group.NumQualityWarning			+
+			group.NumCompatibilityWarning	+
+			group.NumNotSupported			+
+			group.NumResourceError			+
+			group.NumInternalError
+}
+
+// TestCaseTreeGroupStatusDelta
+
+type TestCaseTreeGroupStatusDelta struct {
+	DeltaSuccess				int			`json:"deltaSuccess"`
+	DeltaFailure				int			`json:"deltaFailure"`
+	DeltaCrash					int			`json:"deltaCrash"`
+	DeltaTimeout				int			`json:"deltaTimeout"`
+	DeltaQualityWarning			int			`json:"deltaQualityWarning"`
+	DeltaCompatibilityWarning	int			`json:"deltaCompatibilityWarning"`
+	DeltaNotSupported			int			`json:"deltaNotSupported"`
+	DeltaResourceError			int			`json:"deltaResourceError"`
+	DeltaInternalError			int			`json:"deltaInternalError"`
 }
 
 // BatchExecParams
@@ -819,9 +857,6 @@ func batchResultHierarchyInitOps (rtdbServer *rtdb.Server, batchResultId string)
 
 	for _, nodeInfo := range treeNodeInfos {
 		group := TestCaseTreeGroup {
-			NumSuccess:		0,
-			NumFailure:		0,
-			NumOther:		0,
 			NumTotalCases:	nodeInfo.numTotalCases,
 		}
 		objId := batchResultId + "/" + nodeInfo.path

@@ -48,11 +48,14 @@ limitations under the License.
 					</div>
 
 					<div class="progress" ng-controller="TreeGroupCtrl" ng-init="init(batchResultHeader.id + '/')">
-						<div class="de-progress-bar de-progress-bar-success" ng-style="{width:(getSuccessPercentage() + '%')}"></div>
-						<div class="de-progress-bar de-progress-bar-danger" ng-style="{width:(getFailurePercentage() + '%')}"></div>
-						<div class="de-progress-bar de-progress-bar-other" ng-style="{width:(getOtherPercentage() + '%')}"></div>
+						<div class="de-progress-bar de-progress-bar-success"					ng-style="{width:(getResultTypePercentage('numSuccess') + '%')}"></div>
+						<div class="de-progress-bar de-progress-bar-fail"						ng-style="{width:(getResultTypePercentage('numFailure') + '%')}"></div>
+						<div class="de-progress-bar de-progress-bar-crash-timeout"				ng-style="{width:(getResultTypePercentage('numCrash', 'numTimeout') + '%')}"></div>
+						<div class="de-progress-bar de-progress-bar-warning"					ng-style="{width:(getResultTypePercentage('numQualityWarning', 'numCompatibilityWarning') + '%')}"></div>
+						<div class="de-progress-bar de-progress-bar-not-supported"				ng-style="{width:(getResultTypePercentage('numNotSupported') + '%')}"></div>
+						<div class="de-progress-bar de-progress-bar-resource-internal-error"	ng-style="{width:(getResultTypePercentage('numResourceError', 'numInternalError') + '%')}"></div>
 						<!-- \todo [petri] what text to display for groups? -->
-						<div class="de-progress-bar-text">{{ value.numSuccess + value.numFailure + value.numOther }} / {{ value.numTotalCases }}</div>
+						<div class="de-progress-bar-text">{{ getNumResults(value) }} / {{ value.numTotalCases }}</div>
 					</div>
 				</a>
 			</div>
