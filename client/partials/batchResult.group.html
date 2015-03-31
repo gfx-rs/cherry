@@ -14,11 +14,15 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-<div class="panel panel-default" ng-controller="TestGroupStatsCtrl">
+<div class="panel panel-default de-right-panel" ng-controller="TestGroupStatsCtrl">
 	<div class="panel-heading" style="overflow:hidden;">
-		<h3 style="display:inline; white-space: nowrap;" class="panel-title" ng-switch="testGroupPath === ''">
+		<h3 style="display:inline;" class="panel-title" ng-switch="testGroupPath === ''">
 			<span ng-switch-when="true">Batch statistics</span>
-			<span ng-switch-when="false">{{ testGroupPath }}</span>
+			<span ng-switch-when="false">
+				<!-- Batch name if we are comparing -->
+				<span class="de-batch-name" ng-if="batchResultName !== ''">{{ batchResultName }}</span>
+				{{ testGroupPath }}
+			</span>
 		</h3>
 	</div>
 	<div class="panel-body de-batch-panel-body">

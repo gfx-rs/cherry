@@ -232,6 +232,15 @@ angular.module('cherry.batchResult', [])
 
 	$scope.testGroupPath = $stateParams.testGroupPath;
 
+	// Batch name if displaying a comparison view
+	$scope.batchResultName = "";
+	if ($scope.batchResults && $scope.batchResultIds && $stateParams.batchResultId)
+	{
+		var batchResult = $scope.batchResults[$scope.batchResultIds.indexOf($stateParams.batchResultId)];
+		if (batchResult)
+			$scope.batchResultName = batchResult.name;
+	}
+
 	angular.extend($scope,
 	{
 		getNumResults: function(value)

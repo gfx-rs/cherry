@@ -115,3 +115,13 @@
 .de-progress-bar-text {
 	white-space: nowrap;
 }
+
+.panel-heading .de-batch-name {
+	display: block;
+	font-size: 0.8em;
+	color: #555;
+}
+
+.de-right-panel .panel-title {
+	white-space: nowrap;
+}

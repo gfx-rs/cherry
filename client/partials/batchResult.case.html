@@ -14,14 +14,17 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-<div class="panel panel-default" ng-controller="TestCaseResultCtrl">
+<div class="panel panel-default de-right-panel" ng-controller="TestCaseResultCtrl">
 	<div class="panel-heading" style="overflow:hidden;">
 		<h3 class="panel-title">
+			<!-- Need to have the float-right as the first child to avoid Firefox bug with floats after white-space: nowrap inline elements -->
+			<span id="status" class="pull-right" ng-class="header.status | testStatusClass">[{{ header.status | testStatusHumanReadable }}]</span>
+			<!-- Batch name if we are comparing -->
+			<span class="de-batch-name" ng-if="batchResultName !== ''">{{ batchResultName }}</span>
 			<!-- Title (test case name) linking to the test-case-only view or, if we're
 				 already there, to the corresponding batch result view -->
 			<a ng-if="stateName === 'testCase'" ui-sref="batchResult.case(stateParams)" id="title">{{ result.path || '&nbsp;' }}</a>
 			<a ng-if="stateName !== 'testCase'" ui-sref="testCase(stateParams)" id="title">{{ result.path || '&nbsp;' }}</a>
-			<span id="status" class="pull-right" ng-class="header.status | testStatusClass">[{{ header.status | testStatusHumanReadable }}]</span>
 		</h3>
 	</div>
 

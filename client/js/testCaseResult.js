@@ -27,6 +27,15 @@ angular.module('cherry.testCaseResult', [])
 	$scope.stateParams	= $stateParams;
 	$scope.stateName	= $state.$current.name;
 
+	// Batch name if displaying a comparison view
+	$scope.batchResultName = "";
+	if ($scope.batchResults && $scope.batchResultIds && $stateParams.batchResultId)
+	{
+		var batchResult = $scope.batchResults[$scope.batchResultIds.indexOf($stateParams.batchResultId)];
+		if (batchResult)
+			$scope.batchResultName = batchResult.name;
+	}
+
 	$scope.logHtml = '<div>Pending...</div>';
 
 	// Convert log to
