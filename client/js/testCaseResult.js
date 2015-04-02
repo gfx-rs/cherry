@@ -197,7 +197,7 @@ angular.module('cherry.testCaseResult', [])
 				var closeTag = function ()
 				{
 					openElements.pop();
-				}
+				};
 
 				parser.onclosetag = closeTag;
 
@@ -206,7 +206,7 @@ angular.module('cherry.testCaseResult', [])
 					var parent = openElements[openElements.length-1];
 					if (parent.isValid)
 						parent.element.appendChild(document.createTextNode(text));
-				}
+				};
 
 				// Dummy root.
 				openElements.push({
@@ -224,8 +224,26 @@ angular.module('cherry.testCaseResult', [])
 				return openElements[0].element.innerHTML;
 			};
 
-			// \todo [petri] security hole right here?
-			$scope.logHtml = convertLog(log);
+			var convertedHtml;
+			try
+			{
+				// \todo [petri] security hole right here?
+				convertedHtml = convertLog(log);
+			}
+			catch (ex)
+			{
+				var element = document.createElement("div");
+				var errorElement = document.createElement("pre");
+				var logElement = document.createElement("pre");
+				errorElement.appendChild(document.createTextNode("Log format error, dumping unformatted log\n" + ex.message));
+				logElement.appendChild(document.createTextNode(log));
+				element.appendChild(errorElement);
+				element.appendChild(logElement);
+
+				convertedHtml = element.outerHTML;
+			}
+
+			$scope.logHtml = convertedHtml;
 		}
 	});
 
