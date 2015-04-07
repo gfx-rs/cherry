@@ -268,9 +268,8 @@ func importHandler (response http.ResponseWriter, request *http.Request) {
 		}
 
 		startTime := time.Now()
-		batchResultId			:= startTime.Format(time.RFC3339)
-		batchResultDefaultName	:= startTime.Format("2006-Jan-02 15:04:05")
-		err = testRunner.ImportBatch(batchResultId, batchResultDefaultName, file, request.ContentLength)
+		batchResultDefaultName := "Import-" + startTime.Format("2006-Jan-02 15:04:05")
+		err = testRunner.ImportBatch(batchResultDefaultName, file, request.ContentLength)
 		if err != nil {
 			log.Printf("[import] Import failed with error %v\n", err)
 			anyImportFailed = true

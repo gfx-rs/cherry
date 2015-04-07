@@ -655,18 +655,19 @@ func batchQueueId (params BatchExecParams) string {
 }
 
 // Create a new batch and start executing asynchronously.
-func (runner *TestRunner) ExecuteTestBatch (batchResultId string, batchName string, batchParams BatchExecParams, timestamp time.Time) error {
+func (runner *TestRunner) ExecuteTestBatch (batchName string, batchParams BatchExecParams, timestamp time.Time) (string, error) {
 	// Resolve test case list to execute.
 	// \todo [petri] fetch testCaseList dynamically from target?
 	log.Printf("[runner] test name filters: %q\n", batchParams.TestNameFilters)
 	testCasePaths := filterTestCaseNames(runner.fullTestCaseList, batchParams.TestNameFilters)
 	log.Printf("[runner] filtered from %d cases to %d\n", len(runner.fullTestCaseList), len(testCasePaths))
 
-	return runner.ExecuteTestBatchWithCaseList(batchResultId, batchName, batchParams, timestamp, testCasePaths)
+	return runner.ExecuteTestBatchWithCaseList(batchName, batchParams, timestamp, testCasePaths)
 }
 
 // Create a new batch, with a specific case list and no regard to batchParams.TestNameFilters, and start executing asynchronously.
-func (runner *TestRunner) ExecuteTestBatchWithCaseList (batchResultId string, batchName string, batchParams BatchExecParams, timestamp time.Time, testCasePaths []string) error {
+func (runner *TestRunner) ExecuteTestBatchWithCaseList (batchName string, batchParams BatchExecParams, timestamp time.Time, testCasePaths []string) (string, error) {
+	batchResultId := runner.rtdbServer.MakeUniqueID()
 	opSet := rtdb.NewOpSet()
 
 	// Empty batch result.
@@ -704,7 +705,7 @@ func (runner *TestRunner) ExecuteTestBatchWithCaseList (batchResultId string, ba
 		}
 	}()
 
-	return nil
+	return batchResultId, nil
 }
 
 // Send a stop request to the given batch execution or import.
@@ -781,7 +782,9 @@ func (runner *TestRunner) QueryBatchExecutionLog (batchResultId string) (string,
 	return <-executionLogChan, nil
 }
 
-func (runner *TestRunner) ImportBatch (batchResultId string, batchResultDefaultName string, qpaReader *multipart.Part, totalContentLength int64) error {
+func (runner *TestRunner) ImportBatch (batchResultDefaultName string, qpaReader *multipart.Part, totalContentLength int64) error {
+	batchResultId := runner.rtdbServer.MakeUniqueID()
+
 	var stopRequest <-chan struct{}
 	{
 		stopRequestBidir := make(chan struct{})
