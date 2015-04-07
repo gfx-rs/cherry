@@ -23,9 +23,9 @@ import (
 	"strings"
 	"time"
 	"fmt"
+	"mime/multipart"
 	"unicode/utf8"
 	"strconv"
-	"io"
 	"bufio"
 	"bytes"
 	"os"
@@ -735,7 +735,7 @@ func (runner *TestRunner) QueryBatchExecutionLog (batchResultId string) (string,
 	return <-executionLogChan, nil
 }
 
-func (runner *TestRunner) ImportBatch (batchResultId string, batchResultDefaultName string, qpaReader io.ReadCloser, totalInputLength int64) error {
+func (runner *TestRunner) ImportBatch (batchResultId string, batchResultDefaultName string, qpaReader *multipart.Part, totalContentLength int64) error {
 	var stopRequest <-chan struct{}
 	{
 		stopRequestBidir := make(chan struct{})
@@ -780,16 +780,14 @@ func (runner *TestRunner) ImportBatch (batchResultId string, batchResultDefaultN
 	{
 		opSet					:= rtdb.NewOpSet()
 		keepReading				:= true
+		eofReached				:= false
 		lastDbExecReadCount		:= int64(0) // The value of countingQpaReader.Count() when the latest write to DB was done.
 		existingTreeNodePaths	:= make(map[string]struct{})
 		existingTreeNodePaths[""] = struct{}{} // \note Root node was already added above.
 
-		for keepReading && scanner.Scan() {
-			qpaParser.ParseLine(scanner.Text())
-
+		for keepReading {
 			select {
 				case <-stopRequest:
-					qpaReader.Close()
 					keepReading = false
 
 				case event := <-qpaParserQueue:
@@ -862,12 +860,24 @@ func (runner *TestRunner) ImportBatch (batchResultId string, batchResultDefaultN
 					}
 
 				default:
+					if (eofReached) {
+						keepReading = false
+					} else if scanner.Scan() {
+						qpaParser.ParseLine(scanner.Text())
+					} else {
+						// EOF reached
+						qpaParser.Terminate()
+						eofReached = true
+					}
 			}
 
 			// \note Write to DB in chunks.
 			readCount := countingQpaReader.Count()
 			if readCount - lastDbExecReadCount >= 4*1024*1024 {
-				opSet.Call(typeBatchResult, batchResultId, "SetInitProgress", float32(float64(readCount) / float64(totalInputLength)))
+				if totalContentLength != -1 { // Content-Length = -1 mean unknown
+					approximateProgress := float32(float64(readCount) / float64(totalContentLength))
+					opSet.Call(typeBatchResult, batchResultId, "SetInitProgress", approximateProgress)
+				}
 				err := runner.rtdbServer.ExecuteOpSet(opSet)
 				if err != nil { panic(err) }
 				opSet = rtdb.NewOpSet()
