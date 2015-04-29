@@ -23,7 +23,7 @@ limitations under the License.
 				<form enctype="multipart/form-data" ng-controller="BatchImportCtrl" class="pull-left">
 					<!-- \note Hacky way of "customizing" the file input button: actual input is invisible, contained inside a span visualized as a button. -->
 					<span class="btn btn-default file-input-button">
-						Import existing batch <input type="file" name="file" file-name-model="filename"> <!-- \note AngularJS doesn't support ng-model on file inputs. -->
+						Import existing batch <input type="file" name="file" file-name-model="filename" multiple> <!-- \note AngularJS doesn't support ng-model on file inputs. -->
 					</span>
 				</form>
 				<a class="btn btn-default pull-right" ng-disabled="selectedBatchResults.length === 0" ng-click="$event.stopPropagation()" ui-sref="batchResultComparison({batchResultIds:comparisonBatchIdsStr()})">Compare selected</a>

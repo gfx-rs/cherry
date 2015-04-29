@@ -250,13 +250,50 @@ func importHandler (response http.ResponseWriter, request *http.Request) {
 		return
 	}
 
+	parts, err := request.MultipartReader()
+	if err != nil {
+		http.Error(response, "Expected a multipart upload", 400)
+		return
+	}
+
 	log.Printf("[import] Received request with Content-Length %d\n", request.ContentLength)
-	startTime := time.Now()
-	batchResultId			:= startTime.Format(time.RFC3339)
-	batchResultDefaultName	:= startTime.Format("2006-Jan-02 15:04:05")
-	testRunner.ImportBatch(batchResultId, batchResultDefaultName, request.Body, request.ContentLength)
-	response.WriteHeader(http.StatusOK)
-	log.Printf("[import] Finished\n")
+
+	anyImportSucceeded := false
+	anyImportFailed := false
+
+	for {
+		file, err := parts.NextPart();
+		if err != nil {
+			break
+		}
+
+		startTime := time.Now()
+		batchResultId			:= startTime.Format(time.RFC3339)
+		batchResultDefaultName	:= startTime.Format("2006-Jan-02 15:04:05")
+		err = testRunner.ImportBatch(batchResultId, batchResultDefaultName, file, request.ContentLength)
+		if err != nil {
+			log.Printf("[import] Import failed with error %v\n", err)
+			anyImportFailed = true
+		} else {
+			log.Printf("[import] Single import finished\n")
+			anyImportSucceeded = true
+		}
+
+		file.Close()
+	}
+
+	request.Body.Close()
+
+	if !anyImportFailed {
+		// no failures
+		response.WriteHeader(http.StatusOK)
+	} else if !anyImportSucceeded {
+		// no successes
+		http.Error(response, "Import failed", 500)
+	} else {
+		// both failures and successes
+		http.Error(response, "Partial failure", 207)
+	}
 }
 
 // Mapping of third party locations to desired server locations
