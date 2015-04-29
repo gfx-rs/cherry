@@ -45,17 +45,25 @@ limitations under the License.
 								<button class="btn btn-danger btn-xs" type="button" ng-click="stopExecution();" ng-disabled="!isStoppable">Stop</button>
 							</span>
 						</h4>
-					</div>
 
-					<div class="progress" ng-controller="TreeGroupCtrl" ng-init="init(batchResultHeader.id + '/')">
-						<div class="de-progress-bar de-progress-bar-success"					ng-style="{width:(getResultTypePercentage('numSuccess') + '%')}"></div>
-						<div class="de-progress-bar de-progress-bar-fail"						ng-style="{width:(getResultTypePercentage('numFailure') + '%')}"></div>
-						<div class="de-progress-bar de-progress-bar-crash-timeout"				ng-style="{width:(getResultTypePercentage('numCrash', 'numTimeout') + '%')}"></div>
-						<div class="de-progress-bar de-progress-bar-warning"					ng-style="{width:(getResultTypePercentage('numQualityWarning', 'numCompatibilityWarning') + '%')}"></div>
-						<div class="de-progress-bar de-progress-bar-not-supported"				ng-style="{width:(getResultTypePercentage('numNotSupported') + '%')}"></div>
-						<div class="de-progress-bar de-progress-bar-resource-internal-error"	ng-style="{width:(getResultTypePercentage('numResourceError', 'numInternalError') + '%')}"></div>
-						<!-- \todo [petri] what text to display for groups? -->
-						<div class="de-progress-bar-text">{{ getNumResults(value) }} / {{ value.numTotalCases }}</div>
+						<div ng-controller="BatchResultCtrl">
+							<div ng-if="batchResult.status === 'BSCImporting'" class="progress">
+								<div class="de-progress-bar" ng-style="{width:batchResult.initProgress*100+'%'}"></div>
+								<div class="de-progress-bar-text">Importing {{ batchResult.initProgress | percent }}</div>
+							</div>
+						</div>
+						<div ng-controller="BatchResultCtrl">
+							<div ng-if="batchResult.status !== 'BSCImporting'" class="progress" ng-controller="TreeGroupCtrl" ng-init="init(batchResultHeader.id + '/')">
+								<div class="de-progress-bar de-progress-bar-success"					ng-style="{width:(getResultTypePercentage('numSuccess') + '%')}"></div>
+								<div class="de-progress-bar de-progress-bar-fail"						ng-style="{width:(getResultTypePercentage('numFailure') + '%')}"></div>
+								<div class="de-progress-bar de-progress-bar-crash-timeout"				ng-style="{width:(getResultTypePercentage('numCrash', 'numTimeout') + '%')}"></div>
+								<div class="de-progress-bar de-progress-bar-warning"					ng-style="{width:(getResultTypePercentage('numQualityWarning', 'numCompatibilityWarning') + '%')}"></div>
+								<div class="de-progress-bar de-progress-bar-not-supported"				ng-style="{width:(getResultTypePercentage('numNotSupported') + '%')}"></div>
+								<div class="de-progress-bar de-progress-bar-resource-internal-error"	ng-style="{width:(getResultTypePercentage('numResourceError', 'numInternalError') + '%')}"></div>
+								<!-- \todo [petri] what text to display for groups? -->
+								<div class="de-progress-bar-text">{{ getNumResults(value) }} / {{ value.numTotalCases }}</div>
+							</div>
+						</div>
 					</div>
 				</a>
 			</div>
