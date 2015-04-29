@@ -29,6 +29,7 @@ import (
 	"bufio"
 	"bytes"
 	"os"
+	"regexp"
 )
 
 // Util
@@ -108,16 +109,37 @@ func parseTestCaseSummary (logText string) testCaseSummary {
 	}
 
 	var root xmlRoot
-	{
-		err := xml.Unmarshal(logTextBytes, &root)
-		if err != nil { return testCaseSummary{} }
+	err := xml.Unmarshal(logTextBytes, &root)
+	if err == nil {
+		return testCaseSummary {
+			caseType:	parseTestCaseType(root.CaseType),
+			status:		parseTestStatusCode(root.Result.StatusCode),
+			result:		root.Result.Value,
+		}
 	}
 
-	return testCaseSummary {
-		caseType:	parseTestCaseType(root.CaseType),
-		status:		parseTestStatusCode(root.Result.StatusCode),
-		result:		root.Result.Value,
+	log.Printf("[runner] Test log was not well-formed XML, fallback to manual parsing\n")
+
+	// Parsing XML failed. Maybe the generating process terminated abnormally and
+	// the resulting xml is not well-formed. Try to recover by using a regexp.
+	var regexPattern = `<TestCaseResult [^>]*CaseType="([^"]*)"[^>]*>` +
+					   `(?s).*` +
+					   `<Result StatusCode="([^"]*)">([^<]*)</Result>`
+	var resultParserRegex = regexp.MustCompile(regexPattern)
+	resultParserRegex.Longest();
+	matches := resultParserRegex.FindSubmatch(logTextBytes)
+
+	if matches != nil {
+		return testCaseSummary {
+			caseType:	parseTestCaseType(string(matches[1])),
+			status:		parseTestStatusCode(string(matches[2])),
+			result:		string(matches[3]),
+		}
 	}
+
+	// Fallback failed too
+	log.Printf("[runner] fallback parsing failed\n")
+	return testCaseSummary{}
 }
 
 // Read the log of the test case result and return a test case header and result with appropriate case type
