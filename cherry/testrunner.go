@@ -53,6 +53,14 @@ type TestPackageInfo struct {
 	testCaseList	[]string		// linearized test case list
 }
 
+// Descriptor for load list.
+type TestPackageDescriptor struct {
+	packageName			string
+	binaryName			string
+	binaryDir			string
+	testCaseFileName	string
+}
+
 // TestRunner
 
 type TestRunner struct {
@@ -580,30 +588,46 @@ func importTestPackage (packageName string, binaryName string, binaryDir string,
 	return &testPackage
 }
 
+// Return the list imported packages. Failure to import leaves the failing package silently out of the list.
+func importTestPackages (descriptors []TestPackageDescriptor) []*TestPackageInfo {
+	packageList := []*TestPackageInfo{}
+	for _, descriptor := range(descriptors) {
+		testPackage := importTestPackage(descriptor.packageName, descriptor.binaryName, descriptor.binaryDir, descriptor.testCaseFileName)
+		if (testPackage != nil) {
+			packageList = append(packageList, testPackage)
+		} else {
+			log.Printf("Failed to import package '%s'\n", descriptor.packageName)
+		}
+	}
+	return packageList
+}
+
 func NewTestRunner (rtdbServer *rtdb.Server) *TestRunner {
 	var dataDir = "data/"
 
-	// Import all test package test case lists.
-	packageList := []*TestPackageInfo{}
-	packageList = append(packageList, importTestPackage("dE-IT", "de-internal-tests", "internal", dataDir + "dE-IT-cases.xml"))
-	packageList = append(packageList, importTestPackage("dEQP-EGL", "deqp-egl", "egl", dataDir + "dEQP-EGL-cases.xml"))
-	packageList = append(packageList, importTestPackage("dEQP-GLES2", "deqp-gles2", "gles2", dataDir + "dEQP-GLES2-cases.xml"))
-	packageList = append(packageList, importTestPackage("dEQP-GLES3", "deqp-gles3", "gles3", dataDir + "dEQP-GLES3-cases.xml"))
-	packageList = append(packageList, importTestPackage("dEQP-GLES31", "deqp-gles31", "gles31", dataDir + "dEQP-GLES31-cases.xml"))
-
-	testPackages := make(map[string]TestPackageInfo, 0)
-	for _, testPackage := range packageList {
-		if testPackage != nil {
-			testPackages[testPackage.name] = *testPackage
-		}
+	testPackageDescriptors := []TestPackageDescriptor {
+		// name			 binary					path			test case listing file
+		{"dE-IT",		 "de-internal-tests", 	"internal", 	dataDir + "dE-IT-cases.xml"},
+		{"dEQP-EGL",	 "deqp-egl", 			"egl", 			dataDir + "dEQP-EGL-cases.xml"},
+		{"dEQP-GLES2",	 "deqp-gles2", 			"gles2", 		dataDir + "dEQP-GLES2-cases.xml"},
+		{"dEQP-GLES3",	 "deqp-gles3", 			"gles3", 		dataDir + "dEQP-GLES3-cases.xml"},
+		{"dEQP-GLES31",	 "deqp-gles31", 		"gles31", 		dataDir + "dEQP-GLES31-cases.xml"},
 	}
 
-	// Concatenate all test case names to one big list.
+	packageList := importTestPackages(testPackageDescriptors)
+
+	// Concatenate all test case names to one big list used, e.g., in test launch view
 	fullTestCaseList := make([]string, 0)
-	for _, info := range testPackages {
-		fullTestCaseList = append(fullTestCaseList, info.testCaseList...)
+	for _, testPackage := range packageList {
+		fullTestCaseList = append(fullTestCaseList, testPackage.testCaseList...)
 	}
 	log.Printf("[config] total cases imported: %d\n", len(fullTestCaseList))
+
+	// List of packages used in the server side test launch
+	testPackages := make(map[string]TestPackageInfo, 0)
+	for _, testPackage := range packageList {
+		testPackages[testPackage.name] = *testPackage
+	}
 
 	queueControl := make(chan batchExecQueueControl)
 	importControl := make(chan batchImportControl)
