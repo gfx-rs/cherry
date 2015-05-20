@@ -40,10 +40,10 @@ limitations under the License.
 				   download the thing without leaving the current page. The download
 				   attribute isn't supported by latest IE, but the latest IE seems to
 				   do the desired thing anyway. -->
-		<a class="btn" ng-disabled="isInitializing" ng-href="/export/{{ batchResultId | encodeURIComponent }}" download>Export batch log</a>
-		<a class="btn" ng-disabled="isInitializing" ng-href="/executionLog/{{ batchResultId | encodeURIComponent }}">Show execution log</a>
+		<a class="btn" ng-disabled="!isInitialized" ng-href="/export/{{ batchResultId | encodeURIComponent }}" download>Export batch log</a>
+		<a class="btn" ng-disabled="!isInitialized" ng-href="/executionLog/{{ batchResultId | encodeURIComponent }}">Show execution log</a>
 		<span class="pull-right">
-			<button class="btn btn-default" type="button" ng-click="executeSubBatch()" ng-disabled="isInitializing || !anyNodesForSubBatch">Execute selected</button>
+			<button class="btn btn-default" type="button" ng-click="executeSubBatch()" ng-disabled="!isInitialized || !anyNodesForSubBatch">Execute selected</button>
 			<button class="btn btn-success" type="button" ng-click="continueExecution()" ng-disabled="!isContinuable">Continue</button>
 			<button class="btn btn-danger" type="button" ng-click="stopExecution()" ng-disabled="!isStoppable">Stop</button>
 		</span>
@@ -52,13 +52,13 @@ limitations under the License.
 	<div class="panel-body" id="mainPanelBody">
 		<!-- Test case list -->
 		<div id="testCaseListContainer" style="float:left;">
-			<div ng-switch="isInitializing">
-				<div ng-switch-when="true">Initializing...
+			<div ng-switch="isInitialized">
+				<div ng-switch-when="false">Initializing...
 					<div class="progress">
-						<div class="de-progress-bar" ng-style="{width:batchResult.initProgress*100+'%'}"></div>
+						<div class="de-progress-bar" ng-style="{width:initProgress()*100+'%'}"></div>
 					</div>
 				</div>
-				<div ng-switch-when="false" ng-controller="TestCaseListCtrl">
+				<div ng-switch-when="true" ng-controller="TestCaseListCtrl">
 					<!-- Treeview -->
 					<div class="panel panel-default">
 						<div class="panel-heading">
@@ -100,7 +100,7 @@ limitations under the License.
 
 		<!-- Test case result or test group view -->
 		<div id="testCaseContainer" style="float:left;">
-			<ui-view autoscroll="false" ng-if="!isInitializing" />
+			<ui-view autoscroll="false" ng-if="isInitialized" />
 		</div>
 	</div>
 </div>

@@ -68,7 +68,7 @@ angular.module('cherry.batchResult', [])
 	{
 		$scope.isStoppable		= status === BATCH_STATUS_CODE.RUNNING || status === BATCH_STATUS_CODE.PENDING || status === BATCH_STATUS_CODE.IMPORTING;
 		$scope.isContinuable	= status === BATCH_STATUS_CODE.INTERRUPTED || status === BATCH_STATUS_CODE.CANCELED;
-		$scope.isInitializing	= !status || status === BATCH_STATUS_CODE.IMPORTING || status === BATCH_STATUS_CODE.INITIALIZING; // \note When status is still undefined, we assume it's initializing.
+		$scope.isInitialized	= status && status !== BATCH_STATUS_CODE.IMPORTING && status !== BATCH_STATUS_CODE.INITIALIZING; // \note When status is still undefined, we assume it's initializing.
 	});
 
 	$scope.$watch('batchResult.execParams.deviceId', function(deviceId)
@@ -87,6 +87,13 @@ angular.module('cherry.batchResult', [])
 	{
 		var inputPadding = $('#batchResultNameInput').outerWidth(true) - $('#batchResultNameInput').width();
 		return $('#batchResultNameWidthHelper').width() + 2 + inputPadding; // +2 seems good enough to keep the blinking bar thingy visible even at the right edge.
+	};
+
+	$scope.initProgress = function()
+	{
+		if ($scope.batchResult)
+			return $scope.batchResult.initProgress;
+		return 0.0;
 	};
 
 	// Watch changes on the batch result's name input, and send a name update
