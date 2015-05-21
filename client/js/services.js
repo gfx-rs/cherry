@@ -252,9 +252,86 @@ angular.module('cherry.services', [])
 .factory('rtdb', ['socket', 'rpc', function(socket, rpc)
 {
 	console.log('[rtdb] init');
-	var nextListenerId		= 1;
-	var listeners			= {};
 	var subscribedObjects	= {}; // objectKey(objType, objId): {count:<int>, obj:<obj>}
+
+	var ListenerSet = function()
+	{
+		var nextId			= 1;
+		var listeners		= {}
+		var idTypeCallbacks	= {} // callbacks[objId][objType] :: List(callbacks)
+
+		this.addListener = function(objId, objType, callback)
+		{
+			var listenerId	= nextId;
+			nextId += 1;
+
+			listeners[listenerId] =
+			{
+				listenerId:	listenerId,
+				objType:	objType,
+				objId:		objId,
+				callback:	callback
+			};
+
+			if (!idTypeCallbacks.hasOwnProperty(objId))
+				idTypeCallbacks[objId] = {};
+
+			if (!idTypeCallbacks[objId].hasOwnProperty(objType))
+				idTypeCallbacks[objId][objType] = [];
+
+			idTypeCallbacks[objId][objType].push(callback);
+
+			return listenerId;
+		}
+
+		this.removeListener = function(listenerId)
+		{
+			var listener	= listeners[listenerId];
+			var objType		= listener.objType;
+			var objId		= listener.objId;
+			var callback	= listener.callback;
+			var callbacks	= idTypeCallbacks[objId][objType];
+
+			// swap with last and pop
+			for (var ndx = 0; ndx < callbacks.length; ++ndx)
+			{
+				if (callbacks[ndx] === callback)
+				{
+					callbacks[ndx] = callbacks[callbacks.length - 1];
+					callbacks.pop();
+
+					if (callbacks.length === 0)
+					{
+						delete idTypeCallbacks[objId][objType];
+
+						if (Object.keys(idTypeCallbacks[objId]).length === 0)
+							delete idTypeCallbacks[objId];
+					}
+					break;
+				}
+			}
+			delete listeners[listenerId];
+		}
+
+		this.getListenerById = function(listenerId)
+		{
+			return listeners[listenerId];
+		}
+
+		this.notifyUpdate = function(objId, objType, objValue)
+		{
+			if (!idTypeCallbacks.hasOwnProperty(objId))
+				return;
+
+			if (!idTypeCallbacks[objId].hasOwnProperty(objType))
+				return;
+
+			var callbacks = idTypeCallbacks[objId][objType];
+			for (var ndx = 0; ndx < callbacks.length; ++ndx)
+				callbacks[ndx](objValue);
+		}
+	};
+	var listeners = new ListenerSet();
 
 	var objectKey = function(objType, objId)
 	{
@@ -409,12 +486,7 @@ angular.module('cherry.services', [])
 					subscribedObjects[objKey].obj = obj;
 
 				// Send notification to all listeners.
-				for (var listenerId in listeners)
-				{
-					var listener = listeners[listenerId];
-					if (listener.objType === objType && listener.objId === objId)
-						listener.callback(obj.value);
-				}
+				listeners.notifyUpdate(objId, objType, obj.value);
 			}
 		},
 
@@ -455,12 +527,7 @@ angular.module('cherry.services', [])
 						}
 
 						// Notify all listeners.
-						for (var id in listeners)
-						{
-							var listener = listeners[id];
-							if (listener.objType === objType && listener.objId === objId)
-								listener.callback(obj.value);
-						}
+						listeners.notifyUpdate(objId, objType, obj.value);
 					}
 				}
 				else
@@ -473,18 +540,8 @@ angular.module('cherry.services', [])
 
 	var subscribe = function(objType, objId, callback)
 	{
-		var listenerId	= nextListenerId;
+		var listenerId	= listeners.addListener(objId, objType, callback)
 		var objKey		= objectKey(objType, objId);
-		nextListenerId += 1;
-
-		// Hook up local listener for object.
-		var listener = {
-			listenerId:	listenerId,
-			objType:	objType,
-			objId:		objId,
-			callback:	callback
-		};
-		listeners[listenerId] = listener;
 
 		// Subscribe from cache or server.
 		if (subscribedObjects.hasOwnProperty(objKey))
@@ -506,7 +563,7 @@ angular.module('cherry.services', [])
 
 	var unsubscribe = function(listenerId)
 	{
-		var listener	= listeners[listenerId];
+		var listener	= listeners.getListenerById(listenerId);
 		var objType		= listener.objType;
 		var objId		= listener.objId;
 		var objKey		= objectKey(objType, objId);
@@ -519,7 +576,7 @@ angular.module('cherry.services', [])
 			enqueueUnsubscribe({objType: objType, objId: objId});
 		}
 
-		delete listeners[listenerId];
+		listeners.removeListener(listenerId);
 	};
 
 	var getVersionViewedObject = function(view, objType, objId, onUpdate)
