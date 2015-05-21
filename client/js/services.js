@@ -65,19 +65,12 @@ angular.module('cherry.services', [])
 
 	var flushInMsgs = function(items)
 	{
-		// \note scope.$apply is wrapped in setTimeout to avoid calling it while angular's digest is already active.
-		setTimeout(function()
+		for (var msgNdx = 0; msgNdx < items.length; msgNdx++)
 		{
-			$rootScope.$apply(function ()
-			{
-				for (var msgNdx = 0; msgNdx < items.length; msgNdx++)
-				{
-					var msgArgs = items[msgNdx];
-					for (var ndx = 0; ndx < msgHandlers.length; ndx++)
-						msgHandlers[ndx].call(null, socket, msgArgs); // \todo [petri] this?
-				}
-			});
-		}, 0);
+			var msgArgs = items[msgNdx];
+			for (var ndx = 0; ndx < msgHandlers.length; ndx++)
+				msgHandlers[ndx].call(null, socket, msgArgs); // \todo [petri] this?
+		}
 	};
 	var inMsgQueue = new BatchQueue(flushInMsgs, 100);
 
@@ -277,7 +270,7 @@ angular.module('cherry.services', [])
 	};
 }])
 
-.factory('rtdb', ['socket', 'rpc', function(socket, rpc)
+.factory('rtdb', ['$rootScope', 'socket', 'rpc', function($rootScope, socket, rpc)
 {
 	console.log('[rtdb] init');
 	var subscribedObjects	= {}; // objectKey(objType, objId): {count:<int>, obj:<obj>}
@@ -612,10 +605,64 @@ angular.module('cherry.services', [])
 		versionViewedObjectGetQueue.enqueue({ view: view, objType: objType, objId: objId, onUpdate: onUpdate });
 	};
 
+	var applyBoundDataUpdates = function(items)
+	{
+		for (var ndx = 0; ndx < items.length; ++ndx)
+		{
+			var scope		= items[ndx].scope;
+			var valueName	= items[ndx].valueName;
+			var value		= items[ndx].value;
+			var onUpdateCb	= items[ndx].onUpdateCb;
+			var objType		= items[ndx].objType;
+			var objId		= items[ndx].objId;
+
+			scope[valueName] = value;
+			if (onUpdateCb)
+				onUpdateCb(objType, objId, value);
+		}
+	};
+
+	var flushRootInvalidateUpdates = function(items)
+	{
+		applyBoundDataUpdates(items);
+		$rootScope.$digest();
+	};
+	var flushScopeInvalidateUpdates = function(items)
+	{
+		applyBoundDataUpdates(items);
+
+		// apply in order
+
+		var scopeList = [];
+		for (var itemNdx = 0; itemNdx < items.length; ++itemNdx)
+		{
+			var seenScope = false;
+			for (var scopeNdx = 0; scopeNdx < scopeList.length; ++scopeNdx)
+			{
+				if (scopeList[scopeNdx] === items[itemNdx].scope)
+				{
+					seenScope = true;
+					break;
+				}
+			}
+
+			if (!seenScope)
+				scopeList.push(items[itemNdx].scope);
+		}
+
+		for (var ndx = 0; ndx < scopeList.length; ++ndx)
+			scopeList[ndx].$digest();
+	};
+
+	var rootInvalidateUpdateQueue = new BatchQueue(flushRootInvalidateUpdates, 10);
+	var scopeInvalidateUpdateQueue = new BatchQueue(flushScopeInvalidateUpdates, 20);
+
 	var bind = function(objType, objId, scope, options)
 	{
 		options = options || {};
 		var valueName = options.valueName || 'value';
+		var invalidateMode = options.invalidateMode || 'root';
+		var onUpdateCb = options.onUpdate || null;
 
 		var initial = {};
 		initial[valueName] = null;
@@ -623,10 +670,22 @@ angular.module('cherry.services', [])
 
 		var onUpdate = function(obj)
 		{
-			scope[valueName] = obj;
-
-			if (options.onUpdate)
-				options.onUpdate(objType, objId, obj);
+			if (invalidateMode === "root")
+			{
+				rootInvalidateUpdateQueue.enqueue({ scope: scope, valueName: valueName, value: obj, objType: objType, objId: objId, onUpdateCb: onUpdateCb });
+			}
+			else if (invalidateMode === "scope")
+			{
+				scopeInvalidateUpdateQueue.enqueue({ scope: scope, valueName: valueName, value: obj, objType: objType, objId: objId, onUpdateCb: onUpdateCb });
+			}
+			else if (invalidateMode === "none")
+			{
+				scope[valueName] = obj;
+				if (onUpdateCb)
+					onUpdateCb(objType, objId, obj);
+			}
+			else
+				throw "Invalid mode: " + debugStr(invalidateMode);
 		};
 
 		if (scope.rtdbVersionView && scope.rtdbVersionView.id !== undefined)

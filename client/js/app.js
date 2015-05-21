@@ -19,6 +19,8 @@
 var debugStr = function(val)
 {
 	var str = JSON.stringify(val);
+	if (str === undefined)
+		return 'undefined';
 	if (str.length > 100)
 		return str.slice(0, 97) + "...";
 	return str;
