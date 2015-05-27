@@ -88,6 +88,10 @@ angular.module('cherry', [
 		url:			'/results/testCase/:batchResultId/:testCasePath',
 		templateUrl:	'partials/batchResult.case.html'
 	})
+	.state('about', {
+		url:			'/about',
+		templateUrl:	'partials/about.html'
+	})
 	;
 
 	// Configure routes.

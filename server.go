@@ -307,15 +307,26 @@ func setUpFileMappings() {
 	serverFileMappings := []ServerFileMapping{
 		{"third_party/ui-bootstrap",			"/ui-bootstrap/"},
 		{"third_party/angular",					"/lib/angular/"},
-		{"third_party/ui-router/release",		"/lib/ui-router/"},
+		{"third_party/ui-router",		        "/lib/ui-router/"},
 		{"third_party/jquery",					"/lib/jquery/"},
 		{"third_party/spin",					"/lib/spin/"},
 		{"third_party/angular-spinner",			"/lib/angular-spinner/"},
 		{"third_party/bootstrap",				"/lib/bootstrap/"},
-		{"third_party/sax/lib",					"/lib/sax/"},
+		{"third_party/sax",						"/lib/sax/"},
 		{"third_party/underscore",				"/lib/underscore/"},
  		{"third_party/angular-tree-control",	"/lib/angular-tree-control/"}}
 
+	// Special case the main license
+	http.HandleFunc("/LICENSE", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "LICENSE")
+	})
+
+	// The client hierarchy served as-is
+	fs := http.Dir("client")
+	fileHandler := http.FileServer(fs)
+	http.Handle("/", fileHandler)
+
+	// Re-map third-party to point to the listed directories
 	for _, mapping := range serverFileMappings {
 		bootStrapFs := http.Dir(mapping.SourceRootDir)
 		bootStrapFileHandler := http.StripPrefix(mapping.ServerPrefix, http.FileServer(bootStrapFs))
@@ -359,10 +370,6 @@ func main () {
 		})
 
 	// Setup http handling.
-	fs := http.Dir("client")
-	fileHandler := http.FileServer(fs)
-	http.Handle("/", fileHandler)
-
 	setUpFileMappings()
 
 	http.HandleFunc("/ws", wsHandler)
