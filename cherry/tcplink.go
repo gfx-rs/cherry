@@ -171,6 +171,7 @@ func (link *CommLinkTcpIp) handleConnection (conn net.Conn, eventChannel chan Te
 	}
 
 	// Handle connection.
+	linkLoop:
 	for {
 		select {
 			case <-stopRequest:
@@ -186,11 +187,11 @@ func (link *CommLinkTcpIp) handleConnection (conn net.Conn, eventChannel chan Te
 				err := received.err
 				if err == io.EOF {
 					link.appendCommLogLine("Remote host closed connection")
-					return
+					break linkLoop
 				} else if err != nil {
 					log.Printf("[comm] GOT ERROR FROM READER: %s\n", err)
 					link.appendCommLogLine("Comm link terminating")
-					return
+					break linkLoop
 				} else {
 					// Handle incoming messages.
 					switch msg.(type) {
@@ -205,12 +206,6 @@ func (link *CommLinkTcpIp) handleConnection (conn net.Conn, eventChannel chan Te
 
 						case *MsgProcessFinished:
 							log.Printf("[comm] remote process finished!\n")
-							// \note If test run stopped abnormally, a crashed test case may be unterminated;
-							//		 terminate it now so it doesn't keep us from continuing in the future.
-							if !isStopRequested {
-								qpaParser.Terminate()
-								handleParserQueue()
-							}
 							conn.Close() // \todo [petri] use CloseRead() to avoid error about reading from closed connection
 
 						case *MsgProcessLogData:
@@ -244,12 +239,12 @@ func (link *CommLinkTcpIp) handleConnection (conn net.Conn, eventChannel chan Te
 		if timeoutDiff >= KEEP_ALIVE_TIMEOUT_MINUTES * time.Minute {
 			link.appendCommLogLine("Client timeout")
 			// \todo[petri] handle timeout properly
-			return
+			break linkLoop
 		}
 
 		if isStopRequested && time.Now().Sub(firstStopRequestArrival) >= STOP_REQUEST_TIMEOUT_SECONDS * time.Second {
 			link.appendCommLogLine("Stop request timeout")
-			return
+			break linkLoop
 		}
 
 		// Send keepalive.
@@ -258,7 +253,9 @@ func (link *CommLinkTcpIp) handleConnection (conn net.Conn, eventChannel chan Te
 			log.Printf("[comm] send keepalive\n")
 			msgKeepAlive := MsgKeepAlive{}
 			err := WriteMessage(conn, &msgKeepAlive)
-			if err != nil { return }
+			if err != nil {
+				break linkLoop
+			}
 			lastKeepaliveSent = time.Now()
 		}
 
@@ -266,9 +263,19 @@ func (link *CommLinkTcpIp) handleConnection (conn net.Conn, eventChannel chan Te
 		if hasAnyLogDataArrived && isStopExecMsgPending {
 			link.appendCommLogLine("Sending stop command to execserver")
 			err := WriteMessage(conn, &MsgStopExecution{})
-			if err != nil { link.appendCommLogLine(fmt.Sprintf("Got error when sending stop command: %s", err)); return }
+			if err != nil {
+				link.appendCommLogLine(fmt.Sprintf("Got error when sending stop command: %s", err))
+				break linkLoop
+			}
 			isStopExecMsgPending = false
 		}
+	}
+
+	// \note If test run stopped abnormally, a crashed test case may be unterminated;
+	//		 terminate it now so it doesn't keep us from continuing in the future.
+	if !isStopRequested {
+		qpaParser.Terminate()
+		handleParserQueue()
 	}
 }
 
