@@ -258,6 +258,15 @@ func getNextTestCaseBatch (testCasePaths []string) (string, []string) {
 
 // Execute a batch that has been initialized - i.e., the batch result and its test result objects have already been created and set to pending or other suitable status.
 func (runner *TestRunner) executeBatch (batchResultId string, batchParams BatchExecParams, testCasePaths []string, stopRequest <-chan struct{}, executionLogAppend chan<- string) {
+
+	type BatchExecutionStatus int
+	const (
+		BATCH_EXEC_STATUS_RUNNING BatchExecutionStatus = iota
+		BATCH_EXEC_STATUS_DONE
+		BATCH_EXEC_STATUS_LINK_ERROR
+		BATCH_EXEC_STATUS_GENERIC_ERROR
+	)
+
 	// Start running batch result.
 
 	{
@@ -320,12 +329,23 @@ func (runner *TestRunner) executeBatch (batchResultId string, batchParams BatchE
 			testPackage := runner.testPackages[packageName]
 
 			didProgress := false
+			var executionStatus BatchExecutionStatus = BATCH_EXEC_STATUS_RUNNING
 
 			// Try a few times (in case of connection errors).
 			for tryNdx := 0; tryNdx < 3; tryNdx++ {
 				if tryNdx > 0 {
 					appendRunnerLogLine(fmt.Sprintf("Try again: %d", tryNdx))
 					time.Sleep((time.Duration)(tryNdx) * 500 * time.Millisecond)
+				}
+
+				// If previous error was link error, relaunch execserver just to be sure
+				if executionStatus == BATCH_EXEC_STATUS_LINK_ERROR && deviceConfig.IsADBDevice {
+					appendRunnerLogLine("Relaunching execserver")
+					err := RelaunchAndroidExecServer(deviceConfig.ADBSerialNumber)
+					if err != nil {
+						appendRunnerLogLine(fmt.Sprintf("Failed to relaunch ExecServer on Android via ADB: %v", err))
+						continue // Just try again, if tries left
+					}
 				}
 
 				// Create link to target.
@@ -360,7 +380,8 @@ func (runner *TestRunner) executeBatch (batchResultId string, batchParams BatchE
 				currentlyRunningCases := make(map[string]bool) // Paths of the test cases currently running.
 
 				// Handle all events from comm link, as well as stop requests.
-				for executing := true; executing; {
+				executionStatus = BATCH_EXEC_STATUS_RUNNING
+				for executionStatus == BATCH_EXEC_STATUS_RUNNING {
 					select {
 						case <-stopRequest:
 							runCanceled = true
@@ -415,11 +436,21 @@ func (runner *TestRunner) executeBatch (batchResultId string, batchParams BatchE
 								case EventProcessLaunchFailed:
 									launchFailed := event.(EventProcessLaunchFailed)
 									appendRunnerLogLine(fmt.Sprintf("Process launch failed: %s", launchFailed.reason))
-									executing = false
+									executionStatus = BATCH_EXEC_STATUS_GENERIC_ERROR
 
 								case EventExecutionFinished:
-									appendRunnerLogLine("Test execution finished")
-									executing = false
+									appendRunnerLogLine(fmt.Sprintf("Test execution finished with status %#v", event.(EventExecutionFinished).status))
+									switch (event.(EventExecutionFinished).status) {
+										case EXEC_STATUS_DONE:
+											executionStatus = BATCH_EXEC_STATUS_DONE
+										case EXEC_STATUS_LINK_ERROR:
+											executionStatus = BATCH_EXEC_STATUS_LINK_ERROR
+										case EXEC_STATUS_TIMEOUT:
+											executionStatus = BATCH_EXEC_STATUS_GENERIC_ERROR
+										default:
+											appendRunnerLogLine(fmt.Sprintf("WARNING: unknown end status received: %#v", event.(EventExecutionFinished).status))
+											executionStatus = BATCH_EXEC_STATUS_GENERIC_ERROR
+									}
 
 								default:
 									appendRunnerLogLine(fmt.Sprintf("WARNING: unknown execute event received: %#v", event))
