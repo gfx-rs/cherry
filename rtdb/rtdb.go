@@ -22,6 +22,8 @@ import (
 	"fmt"
 	"log"
 	"reflect"
+	"time"
+	"strconv"
 )
 
 type Object struct {
@@ -504,6 +506,15 @@ func (server *Server) GetExplicitTypeObject (obj TypedObject, dst ObjectBase) er
 	ret := make(chan error)
 	server.requestQueue <- func() {
 		ret <- server.backend.GetExplicitTypeObject(obj.Type, obj.ObjId, dst)
+	}
+	return <- ret
+}
+
+func (server *Server) MakeUniqueID () string {
+	ret := make(chan string)
+	server.requestQueue <- func() {
+		// requestQueue serializes accesses -> time will be unique
+		ret <- strconv.FormatInt(time.Now().UnixNano(), 10)
 	}
 	return <- ret
 }

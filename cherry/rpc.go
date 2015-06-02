@@ -108,8 +108,7 @@ func (handler *RPCHandler) ExecuteTestBatch (client *RPCClient, args ExecuteTest
 
 	// Generate time-based id for batch result.
 	startTime := time.Now()
-	batchResultId	:= startTime.Format(time.RFC3339)
-	batchResultName	:= startTime.Format(defaultHumanReadableTimeFormat)
+	batchResultName := startTime.Format(defaultHumanReadableTimeFormat)
 
 	// Execute tests in background.
 	execParams := BatchExecParams {
@@ -127,7 +126,8 @@ func (handler *RPCHandler) ExecuteTestBatch (client *RPCClient, args ExecuteTest
 		// tests
 		TestNameFilters:		strings.Split(args.TestNameFilters, ";"),
 	}
-	handler.testRunner.ExecuteTestBatch(batchResultId, batchResultName, execParams, startTime)
+	batchResultId, err := handler.testRunner.ExecuteTestBatch(batchResultName, execParams, startTime)
+	if err != nil { return "", err }
 
 	return batchResultId, nil
 }
@@ -153,12 +153,12 @@ func (handler *RPCHandler) ExecuteSubTestBatch (client *RPCClient, args ExecuteS
 
 	// Generate time-based id for batch result.
 	startTime := time.Now()
-	batchResultId	:= startTime.Format(time.RFC3339)
-	batchResultName	:= startTime.Format(defaultHumanReadableTimeFormat)
+	batchResultName := startTime.Format(defaultHumanReadableTimeFormat)
 
 	testCasePaths := filterTestCaseNames(originalCaseList.Paths, strings.Split(args.TestNameFilters, ";"))
 
-	handler.testRunner.ExecuteTestBatchWithCaseList(batchResultId, batchResultName, original.ExecParams, startTime, testCasePaths)
+	batchResultId, err := handler.testRunner.ExecuteTestBatchWithCaseList(batchResultName, original.ExecParams, startTime, testCasePaths)
+	if err != nil { return "", err }
 
 	return batchResultId, nil
 }
