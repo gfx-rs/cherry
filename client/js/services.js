@@ -154,17 +154,46 @@ angular.module('cherry.services', [])
 
 .factory('rpc', ['$q', 'socket', 'usSpinnerService', function($q, socket, usSpinnerService)
 {
-	var nextRequestId	= 1;
-	var pendingRequests	= {};
-	var modules			= {};
+	var nextRequestId		= 1;
+	var pendingRequests		= {};
+	var spinnerSpinning		= false;
+	var spinnerStartIssued	= false;
+	var modules				= {};
+
+	var updateSpinner = function()
+	{
+		var shouldBeSpinning = !_.isEmpty(pendingRequests);
+
+		// \todo [petri] use data binding instead of explicit calls?
+
+		if (spinnerSpinning && !shouldBeSpinning)
+		{
+			spinnerSpinning = false;
+			usSpinnerService.stop('rpc-spinner');
+		}
+		else if (!spinnerSpinning && shouldBeSpinning)
+		{
+			// Delay spinner start to avoid costly relayout for short rpc queries
+			if (!spinnerStartIssued)
+			{
+				spinnerStartIssued = true;
+				setTimeout(function()
+				{
+					spinnerStartIssued = false;
+
+					var shouldBeSpinning = !_.isEmpty(pendingRequests);
+					if (shouldBeSpinning)
+					{
+						spinnerSpinning = true;
+						usSpinnerService.spin('rpc-spinner');
+					}
+				}, 300);
+			}
+		}
+	};
 
 	var call = function(method)
 	{
-		// Start spinner.
-		// \todo [petri] use data binding instead of explicit calls?
-		if (_.isEmpty(pendingRequests))
-			usSpinnerService.spin('rpc-spinner');
-
 		var requestId = nextRequestId++;
 		var params = Array.prototype.slice.call(arguments, 1)
 		console.log('[rpc] call ' + method + ': ' + debugStr(JSON.stringify(params)));
@@ -173,20 +202,21 @@ angular.module('cherry.services', [])
 		// \todo [petri] possible race condition?
 		var deferred = $q.defer();
 		pendingRequests[requestId] = deferred;
+
+		updateSpinner();
+
 		return deferred.promise;
 	};
 
 	var cast = function(method)
 	{
-		// Start spinner.
-		if (_.isEmpty(pendingRequests))
-			usSpinnerService.spin('rpc-spinner');
-
 		var requestId = nextRequestId++;
 		var params = Array.prototype.slice.call(arguments, 1)
-		socket.emit({ jsonrpc:"2.0", method:method, params:params, id:requestId });
+		socket.emit({ jsonrpc:"2.0", id:requestId, method:method, params:params });
 		pendingRequests[requestId] = $q.defer(); // not used!
 		// \todo [petri] don't create deferred object?
+
+		updateSpinner();
 	};
 
 	socket.onmessage(function(socket, args)
@@ -230,9 +260,7 @@ angular.module('cherry.services', [])
 				else
 					deferred.reject(args.error);
 
-				// Stop spinner, if all pending requests done.
-				if (_.isEmpty(pendingRequests))
-					usSpinnerService.stop('rpc-spinner');
+				updateSpinner();
 			}
 		}
 	});
