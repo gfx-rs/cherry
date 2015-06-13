@@ -4,9 +4,17 @@ BROWSER-BASED (ANDROID) NATIVE TEST EXECUTION TOOL (FOR GRAPHICS)
 Setting Up Development Environment
 ----------------------------------
 
+LINUX
+
+- Install golang (sudo apt-get install golang or https://golang.org/doc/install)
+
+- Set up go path (For example, export GOPATH=$HOME/gopath)
+
+WINDOWS
+
 In order to be able to build Cherry on Windows, the following are required.
 
-- Go distribution: https://code.google.com/p/go/downloads/list
+- Go distribution: https://golang.org/doc/install
   * (use 32-bit installation on Windows, 64-bit doesn't compile sqlite out-of-the-box)
   * set GOPATH=C:\go or GOPATH=<path to cherry>
     + All dependiencies (go get) will be installed here
@@ -18,8 +26,7 @@ In order to be able to build Cherry on Windows, the following are required.
   * note: using Cygwin GCC doesn't work
 
 
-Using 64-bit Go on Windows
---------------------------
+64-BIT WINDOWS
 
 64-bit build of sqlite driver requires MinGW toolchain that supports x64. Such toolchain
 is maintained by mingw-w64 project (http://mingw-w64.sourceforge.net/).
@@ -51,9 +58,11 @@ The process should be repeated every time new tests have been added.
 Running Cherry
 --------------
 
-1. Run "go run server.go" in your cherry/ directory.
+1. Make sure adb executable is in the path
 
-2. Point your favorite browser to http://127.0.0.1:8080.
+2. Run "go run server.go" in your cherry/ directory.
+
+3. Point your favorite browser to http://127.0.0.1:8080.
 
 
 Running Selenium Tests
