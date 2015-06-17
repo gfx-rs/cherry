@@ -217,17 +217,18 @@ func (parser *LogContainerParser) ParseLine (line string) {
 
 			case "#beginTestCaseResult":
 				if !parser.isInsideSession {
-					log.Println("[qpa] warning: first test case before #beginSession; ignoring")
+					log.Println("[qpa] warning: first test case before #beginSession; assuming session started")
+					parser.beginSession()
+					parser.isInsideSession = true
+				}
+				if rest == "" {
+					log.Println("[qpa] warning: empty test case name in #beginTestCaseResult; ignoring test case")
 				} else {
-					if rest == "" {
-						log.Println("[qpa] warning: empty test case name in #beginTestCaseResult; ignoring test case")
-					} else {
-						if parser.currentCasePath != "" {
-							log.Println("[qpa] warning: #beginTestCaseResult when already parsing a test case; terminating current case")
-							parser.endTestCase(TEST_STATUS_CODE_INTERNAL_ERROR)
-						}
-						parser.beginTestCase(rest)
+					if parser.currentCasePath != "" {
+						log.Println("[qpa] warning: #beginTestCaseResult when already parsing a test case; terminating current case")
+						parser.endTestCase(TEST_STATUS_CODE_INTERNAL_ERROR)
 					}
+					parser.beginTestCase(rest)
 				}
 
 			case "#endTestCaseResult":
