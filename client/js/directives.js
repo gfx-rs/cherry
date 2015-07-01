@@ -99,8 +99,11 @@ angular.module('cherry.directives', [])
 			var leftElemWidthRatio		= barLeftRatio;
 			var rightElemWidthRatio		= 1.0 - barWidthRatio - barLeftRatio;
 
-			leftElem.width(percentStr(leftElemWidthRatio - pads(leftElem)/containerElem.width()));
-			rightElem.width(percentStr(rightElemWidthRatio - pads(rightElem)/containerElem.width()));
+			// on some configurations (precision issues?) we need to give some leeway for the implementation
+			var errorTolerance			= 0.01;
+
+			leftElem.width(percentStr(leftElemWidthRatio - pads(leftElem)/containerElem.width() - errorTolerance));
+			rightElem.width(percentStr(rightElemWidthRatio - pads(rightElem)/containerElem.width() - errorTolerance));
 
 			currentBarLeftRatio = barLeftRatio;
 		}
