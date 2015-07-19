@@ -189,13 +189,7 @@ func (parser *LogContainerParser) IsInsideSession () bool {
 }
 
 func (parser *LogContainerParser) ParseLine (line string) {
-	if len(line) == 0 { return }
-
-	if line[0] != '#' && parser.currentCasePath != "" {
-		// Usual case.
-		parser.currentCaseLog.WriteString(line)
-		parser.currentCaseLog.WriteString("\n")
-	} else {
+	if len(line) > 0 && line[0] == '#' {
 		directive, rest := split2(line, " ")
 
 		switch directive {
@@ -264,6 +258,12 @@ func (parser *LogContainerParser) ParseLine (line string) {
 					parser.currentCaseLog.WriteString("\n")
 				}
 		}
+	} else if parser.currentCasePath != "" {
+		// Case data
+		parser.currentCaseLog.WriteString(line)
+		parser.currentCaseLog.WriteString("\n")
+	} else {
+		// empty line outside test case, ignore
 	}
 }
 
