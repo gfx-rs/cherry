@@ -346,6 +346,12 @@ func LaunchAndroidExecServer (adbSerialNumber string, localPort int) error {
 	)
 }
 
+func RelaunchAndroidExecServer (adbSerialNumber string) error {
+	return runCommands(
+		exec.Command("adb", "-s", adbSerialNumber, "shell", "am", "start", "-n", "com.drawelements.deqp/.execserver.ServiceStarter"),
+	)
+}
+
 func RemoveADBPortForward (adbSerialNumber string, localPort int) error {
 	forwardInfos, err := getADBPortForwardInfos()
 	if err != nil { return err }

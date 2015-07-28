@@ -66,6 +66,16 @@ const (
 	STOP_REQUEST_TIMEOUT_SECONDS	= 10
 )
 
+// Enums
+
+type ExecStatusCode int
+
+const (
+	EXEC_STATUS_DONE			ExecStatusCode = iota
+	EXEC_STATUS_LINK_ERROR
+	EXEC_STATUS_TIMEOUT
+)
+
 // TestExecutorEvent
 
 type TestExecutorEvent interface {
@@ -97,6 +107,7 @@ type EventTestCaseFinished struct {
 }
 
 type EventExecutionFinished struct {
+	status			ExecStatusCode
 }
 
 // LineSplitter
@@ -119,7 +130,6 @@ func (s *LineSplitter) GetLines () []string {
 
 func (link *CommLinkTcpIp) handleConnection (conn net.Conn, eventChannel chan TestExecutorEvent, stopRequest <-chan struct{}) {
 	defer log.Printf("[comm] handleConnection() returning..\n")
-	defer func(){ eventChannel <- EventExecutionFinished{} }()
 
 	type received struct {
 		msg		Message
@@ -170,6 +180,8 @@ func (link *CommLinkTcpIp) handleConnection (conn net.Conn, eventChannel chan Te
 		}
 	}
 
+	var finishStatus ExecStatusCode
+
 	// Handle connection.
 	linkLoop:
 	for {
@@ -187,10 +199,12 @@ func (link *CommLinkTcpIp) handleConnection (conn net.Conn, eventChannel chan Te
 				err := received.err
 				if err == io.EOF {
 					link.appendCommLogLine("Remote host closed connection")
+					finishStatus = EXEC_STATUS_DONE
 					break linkLoop
 				} else if err != nil {
 					log.Printf("[comm] GOT ERROR FROM READER: %s\n", err)
 					link.appendCommLogLine("Comm link terminating")
+					finishStatus = EXEC_STATUS_LINK_ERROR
 					break linkLoop
 				} else {
 					// Handle incoming messages.
@@ -239,11 +253,13 @@ func (link *CommLinkTcpIp) handleConnection (conn net.Conn, eventChannel chan Te
 		if timeoutDiff >= KEEP_ALIVE_TIMEOUT_MINUTES * time.Minute {
 			link.appendCommLogLine("Client timeout")
 			// \todo[petri] handle timeout properly
+			finishStatus = EXEC_STATUS_TIMEOUT
 			break linkLoop
 		}
 
 		if isStopRequested && time.Now().Sub(firstStopRequestArrival) >= STOP_REQUEST_TIMEOUT_SECONDS * time.Second {
 			link.appendCommLogLine("Stop request timeout")
+			finishStatus = EXEC_STATUS_TIMEOUT
 			break linkLoop
 		}
 
@@ -254,6 +270,7 @@ func (link *CommLinkTcpIp) handleConnection (conn net.Conn, eventChannel chan Te
 			msgKeepAlive := MsgKeepAlive{}
 			err := WriteMessage(conn, &msgKeepAlive)
 			if err != nil {
+				finishStatus = EXEC_STATUS_LINK_ERROR
 				break linkLoop
 			}
 			lastKeepaliveSent = time.Now()
@@ -265,6 +282,7 @@ func (link *CommLinkTcpIp) handleConnection (conn net.Conn, eventChannel chan Te
 			err := WriteMessage(conn, &MsgStopExecution{})
 			if err != nil {
 				link.appendCommLogLine(fmt.Sprintf("Got error when sending stop command: %s", err))
+				finishStatus = EXEC_STATUS_LINK_ERROR
 				break linkLoop
 			}
 			isStopExecMsgPending = false
@@ -277,6 +295,8 @@ func (link *CommLinkTcpIp) handleConnection (conn net.Conn, eventChannel chan Te
 		qpaParser.Terminate()
 		handleParserQueue()
 	}
+
+	eventChannel <- EventExecutionFinished{ finishStatus }
 }
 
 func (link *CommLinkTcpIp) Start () error {
