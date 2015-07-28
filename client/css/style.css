@@ -90,6 +90,7 @@ ul.nav-sidebar > li.active {
 
 .de-text {
 	white-space: pre-wrap;
+	min-height: 1em;
 }
 
 .de-section, .de-shader-program, .de-shader, .de-egl-config-set, .de-build-info, .de-image-set {
