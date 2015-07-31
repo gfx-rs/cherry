@@ -235,7 +235,7 @@ angular.module('cherry.batchResult', [])
 .controller('TestGroupStatsCtrl', ['$scope', '$stateParams', 'rtdb', 'rpc', function($scope, $stateParams, rtdb, rpc)
 {
 	var objId = $stateParams.batchResultId + '/' + $stateParams.testGroupPath;
-	rtdb.bind('TestCaseTreeGroup', objId, $scope);
+	rtdb.bind('TestCaseTreeGroup', objId, $scope, { invalidateMode: 'scope' });
 
 	$scope.testGroupPath = $stateParams.testGroupPath;
 
@@ -304,7 +304,7 @@ angular.module('cherry.batchResult', [])
 
 		init: function(objId)
 		{
-			rtdb.bind('TestCaseTreeGroup', objId, $scope);
+			rtdb.bind('TestCaseTreeGroup', objId, $scope, { invalidateMode: 'scope' });
 		},
 
 		getNumResults: function()
@@ -381,11 +381,7 @@ angular.module('cherry.batchResult', [])
 			// \note obj can be either a header object's id (a string) or the header object itself.
 			if (_.isString(obj))
 			{
-				// \note object binding is done asynchronously to avoid stalling UI for long (when opening large sub-trees)
-				setTimeout(function()
-				{
-					rtdb.bind('TestCaseHeader', obj, $scope, { onUpdate:onUpdate });
-				}, 0);
+				rtdb.bind('TestCaseHeader', obj, $scope, { onUpdate: onUpdate, invalidateMode: 'scope' });
 			}
 			else
 			{
