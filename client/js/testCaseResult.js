@@ -69,6 +69,7 @@ angular.module('cherry.testCaseResult', [])
 					TessEvaluationShader:	{ tag: 'de-shader',			attributes: {'type': 'tess-evaluation'}	},
 					ComputeShader:			{ tag: 'de-shader',			attributes: {'type': 'compute'}			},
 					ShaderSource:			{ tag: 'de-shader-source'											},
+					SpirVAssemblySource:	{ tag: 'de-spirv-source'											},
 					Section:				{ tag: 'de-section'													},
 					EglConfigSet:			{ tag: 'de-egl-config-set'											},
 					EglConfig:				{ tag: 'de-egl-config'												},
@@ -413,6 +414,19 @@ angular.module('cherry.testCaseResult', [])
 							'</span>)' +
 						'</span>' +
 						'<div ng-transclude />' +
+					'</div>',
+	};
+}])
+
+.directive('deSpirvSource', [function()
+{
+	return {
+		restrict:	'E',
+		replace:	true,
+		transclude:	true,
+		template:	'<div class="de-shader">' +
+						'<span class="de-shader-heading">SPIR-V assembly source</span>' +
+						'<pre ng-transclude />' +
 					'</div>',
 	};
 }])
