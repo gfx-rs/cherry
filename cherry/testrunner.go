@@ -341,7 +341,7 @@ func (runner *TestRunner) executeBatch (batchResultId string, batchParams BatchE
 				// If previous error was link error, relaunch execserver just to be sure
 				if executionStatus == BATCH_EXEC_STATUS_LINK_ERROR && deviceConfig.IsADBDevice {
 					appendRunnerLogLine("Relaunching execserver")
-					err := RelaunchAndroidExecServer(deviceConfig.ADBSerialNumber)
+					err := RelaunchAndroidExecServer(deviceConfig.ADBSerialNumber, batchParams.TargetPort)
 					if err != nil {
 						appendRunnerLogLine(fmt.Sprintf("Failed to relaunch ExecServer on Android via ADB: %v", err))
 						continue // Just try again, if tries left

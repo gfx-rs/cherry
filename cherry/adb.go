@@ -338,17 +338,19 @@ func StartADBDeviceListPoller (rtdbServer *rtdb.Server, interval time.Duration) 
 	}()
 }
 
-func LaunchAndroidExecServer (adbSerialNumber string, localPort int) error {
+func LaunchAndroidExecServer (adbSerialNumber string, port int) error {
+	portSpec := "tcp:" + strconv.Itoa(port)
+
 	return runCommands(
-		exec.Command("adb", "-s", adbSerialNumber, "forward", "tcp:" + strconv.Itoa(localPort), "tcp:50016"),
+		exec.Command("adb", "-s", adbSerialNumber, "forward", portSpec, portSpec),
 		exec.Command("adb", "-s", adbSerialNumber, "shell", "setprop", "log.tag.dEQP", "DEBUG"),
-		exec.Command("adb", "-s", adbSerialNumber, "shell", "am", "start", "-n", "com.drawelements.deqp/.execserver.ServiceStarter"),
+		exec.Command("adb", "-s", adbSerialNumber, "shell", "am", "start", "-n", "com.drawelements.deqp/.execserver.ServiceStarter", "--ei", "port", strconv.Itoa(port)),
 	)
 }
 
-func RelaunchAndroidExecServer (adbSerialNumber string) error {
+func RelaunchAndroidExecServer (adbSerialNumber string, port int) error {
 	return runCommands(
-		exec.Command("adb", "-s", adbSerialNumber, "shell", "am", "start", "-n", "com.drawelements.deqp/.execserver.ServiceStarter"),
+		exec.Command("adb", "-s", adbSerialNumber, "shell", "am", "start", "-n", "com.drawelements.deqp/.execserver.ServiceStarter", "--ei", "port", strconv.Itoa(port)),
 	)
 }
 
