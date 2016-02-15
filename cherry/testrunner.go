@@ -637,12 +637,13 @@ func NewTestRunner (rtdbServer *rtdb.Server) *TestRunner {
 	var dataDir = "data/"
 
 	testPackageDescriptors := []TestPackageDescriptor {
-		// name			 binary					path			test case listing file
-		{"dE-IT",		 "de-internal-tests", 	"internal", 	dataDir + "dE-IT-cases.xml"},
-		{"dEQP-EGL",	 "deqp-egl", 			"egl", 			dataDir + "dEQP-EGL-cases.xml"},
-		{"dEQP-GLES2",	 "deqp-gles2", 			"gles2", 		dataDir + "dEQP-GLES2-cases.xml"},
-		{"dEQP-GLES3",	 "deqp-gles3", 			"gles3", 		dataDir + "dEQP-GLES3-cases.xml"},
-		{"dEQP-GLES31",	 "deqp-gles31", 		"gles31", 		dataDir + "dEQP-GLES31-cases.xml"},
+		// name			 binary					path									test case listing file
+		{"dE-IT",		 "de-internal-tests",	"internal",								dataDir + "dE-IT-cases.xml"},
+		{"dEQP-EGL",	 "deqp-egl",			"egl",									dataDir + "dEQP-EGL-cases.xml"},
+		{"dEQP-GLES2",	 "deqp-gles2",			"gles2",								dataDir + "dEQP-GLES2-cases.xml"},
+		{"dEQP-GLES3",	 "deqp-gles3",			"gles3",								dataDir + "dEQP-GLES3-cases.xml"},
+		{"dEQP-GLES31",	 "deqp-gles31",			"gles31",								dataDir + "dEQP-GLES31-cases.xml"},
+		{"dEQP-VK",		 "deqp-vk",				"../external/vulkancts/modules/vulkan",	dataDir + "dEQP-VK-cases.xml"},
 	}
 
 	packageList := importTestPackages(testPackageDescriptors)
