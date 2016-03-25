@@ -19,7 +19,6 @@ package cherry
 import (
 	"encoding/xml"
 	"fmt"
-	"os"
 	"strings"
 	"io"
 )
@@ -61,21 +60,6 @@ func (tree *TestCaseTree) GetLinearizedList () []string {
 	return list
 }
 
-// Data types for importing dEQP-*-TestSets.xml
-
-type TestSet struct {
-	Name		string			`xml:"Name,attr"`
-	Filters		string			`xml:"TestNameFilters,attr"`
-}
-
-type TestSetList struct {
-	TestSets	[]TestSet		`xml:"TestSet"`
-}
-
-type CandyConfig struct {
-	TestSetList	TestSetList		`xml:"TestSets"`
-}
-
 // Import dEQP-*-cases.xml
 
 func importTestCaseTree (treeXml io.Reader, packageName string) (*TestCaseTree, error) {
@@ -90,24 +74,6 @@ func importTestCaseTree (treeXml io.Reader, packageName string) (*TestCaseTree, 
 
 	// Return.
 	return &tree, nil
-}
-
-// Import dEQP-*-TestSets.xml
-
-func importTestSets (fileName string) (*TestSetList, error) {
-	// Open file.
-	xmlFile, err := os.Open(fileName)
-	if err != nil { return nil, err }
-	defer xmlFile.Close()
-
-	// Parse XML.
-	config := CandyConfig{}
-	decoder := xml.NewDecoder(xmlFile)
-	err = decoder.Decode(&config)
-	if err != nil { return nil, err }
-
-	// Return.
-	return &config.TestSetList, nil
 }
 
 // Tests.

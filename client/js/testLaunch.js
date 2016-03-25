@@ -34,80 +34,135 @@ angular.module('cherry.testLaunch', [])
 		deviceSettings:		{},		// child scopes will fill this with { deviceId:$scope.value }
 		deviceError:		{},		//									{ deviceId:error } if the specific device has an error prohibiting test execution
 		deviceIsADB:		{},
+		activeSelectorTab:	'tree',
+		selectedTestSetId:	undefined,
 
 		selectDevice: function(deviceId)
 		{
 			$scope.selectedDeviceId = deviceId;
 		},
 
-		executeTestBatch: function()
+		setSelectorTab: function(tab)
 		{
-			// Combine final test filters string from test case tree selections and manually specified field.
-			var testFilters = [];
-			if (testTreeAccess.nodeSelected)
-			{
-				var str = genTestCaseTreeSubsetFilter($scope.fullTestCaseTree, testTreeAccess.nodeSelected);
-				if (str !== '')
-					testFilters.push(str);
-			}
-			if ($scope.testNameFilters)
-				testFilters = testFilters.concat(_.filter($scope.testNameFilters.split(";"), function(f) { return f.length !== 0; }));
-			testFilters = testFilters.join(";");
+			$scope.activeSelectorTab = tab
+		},
 
+		canExecuteTestBatch: function()
+		{
+			var setsValid = $scope.activeSelectorTab === 'sets' && !!$scope.selectedTestSetId;
+			return !!$scope.selectedDeviceId && ($scope.activeSelectorTab === 'tree' || setsValid);
+		},
+
+		getDeviceConfig: function(deviceId)
+		{
 			// Use settings specified in the child element (device config).
-			var deviceConfig = $scope.deviceSettings[$scope.selectedDeviceId];
-			console.log('[exec] config "' + $scope.selectedDeviceId + '":');
+			var deviceConfig = $scope.deviceSettings[deviceId];
+			console.log('[exec] config "' + deviceId + '":');
 			_.map(deviceConfig, function(value, key) { console.log('  ' + key + ': ' + JSON.stringify(value)); });
 
 			var targetPort = parseInt(deviceConfig.targetPort) || 0;
 
 			// \todo [petri] better error checking/handling
-			if ($scope.deviceError.hasOwnProperty($scope.selectedDeviceId))
-				alert($scope.deviceError[$scope.selectedDeviceId]);
+			// \todo [2017-03-15 kraita] Also, split sanity checks into another function.
+			if ($scope.deviceError.hasOwnProperty(deviceId))
+				alert($scope.deviceError[deviceId]);
 			else if (!deviceConfig.targetAddress)
 				alert('Invalid target address: "' + (deviceConfig.targetAddress || '') + '"');
 			else if (targetPort <= 0)
 				alert('Invalid target port: "' + targetPort + '"');
-			else if (!testFilters)
-				alert('No tests selected');
+
+			var config = {
+				targetAddress:			deviceConfig.targetAddress,
+				targetPort:				targetPort,
+				spawnLocalProcess:		deviceConfig.localProcessPath,
+				deviceId:				deviceId,
+			}
+
+			return config;
+		},
+
+		getTestPackageConfig: function(deviceId)
+		{
+			var deviceConfig = $scope.deviceSettings[deviceId];
+			var config = {
+				testBinaryName:			deviceConfig.binaryPath,
+				testBinaryCommandLine:	deviceConfig.commandLine || '',
+				testBinaryWorkingDir:	deviceConfig.workingDir,
+			};
+			return config;
+		},
+
+		executeTestBatch: function()
+		{
+			var params = {
+				deviceConfig:	   $scope.getDeviceConfig($scope.selectedDeviceId),
+				testPackageConfig: $scope.getTestPackageConfig($scope.selectedDeviceId),
+			};
+
+			var executeMethod = undefined;
+
+			if ($scope.activeSelectorTab === 'sets')
+			{
+				params.testSetId = $scope.selectedTestSetId;
+				if (!params.testSetId) {
+					alert('No test set selected');
+					return;
+				}
+				executeMethod = 'rtdb.ExecuteTestSet';
+				console.log("[exec] Execute test set: " + params.testSetId);
+			}
 			else
 			{
-				var params = {
-					targetAddress:			deviceConfig.targetAddress,
-					targetPort:				targetPort,
-					spawnLocalProcess:		deviceConfig.localProcessPath,
-					deviceId:				$scope.selectedDeviceId,
-					testBinaryName:			deviceConfig.binaryPath,
-					testBinaryCommandLine:	deviceConfig.commandLine || '',
-					testBinaryWorkingDir:	deviceConfig.workingDir,
-					testNameFilters:		testFilters,
-				};
-
-				// Check if the queue that this execution would go to contains different devices, and not this one.
-				// It's unlikely that one would like to queue (i.e. use same port for) different devices.
-				rpc.call('rtdb.WouldQueueWithOnlyDifferentDevices', {
-					targetAddress:	deviceConfig.targetAddress,
-					targetPort:		targetPort,
-					deviceId:		$scope.selectedDeviceId,
-				})
-				.then(function(wouldQueueWithOnlyDifferentDevices)
+				// Combine final test filters string from test case tree selections and manually specified field.
+				var testFilters = [];
+				if (testTreeAccess.nodeSelected)
 				{
-					if (!wouldQueueWithOnlyDifferentDevices || confirm("Different device is using the same address and port - really queue?"))
-					{
-						rpc.call('rtdb.ExecuteTestBatch', params)
-						.then(function(batchResultId)
-						{
-							console.log('Executing ' + batchResultId);
-							$location.url('/results/batch/' + batchResultId);
-						});
-					}
-				});
+					var str = genTestCaseTreeSubsetFilter($scope.fullTestCaseTree, testTreeAccess.nodeSelected);
+					if (str !== '')
+						testFilters.push(str);
+				}
+				if ($scope.testNameFilters)
+					testFilters = testFilters.concat(_.filter($scope.testNameFilters.split(";"), function(f) { return f.length !== 0; }));
+				testFilters = testFilters.join(";");
+
+				if (!testFilters) {
+					alert('No tests selected');
+					return;
+				}
+
+				params.testNameFilters = testFilters;
+				executeMethod		   = 'rtdb.ExecuteTestBatch'
 			}
+
+			// Check if the queue that this execution would go to contains different devices, and not this one.
+			// It's unlikely that one would like to queue (i.e. use same port for) different devices.
+			rpc.call('rtdb.WouldQueueWithOnlyDifferentDevices', {
+				targetAddress:	params.deviceConfig.targetAddress,
+				targetPort:		params.deviceConfig.targetPort,
+				deviceId:		params.deviceId,
+			})
+			.then(function(wouldQueueWithOnlyDifferentDevices)
+			{
+				if (!wouldQueueWithOnlyDifferentDevices || confirm("Different device is using the same address and port - really queue?"))
+				{
+					rpc.call(executeMethod, params)
+					.then(function(batchResultId)
+					{
+						console.log('Executing ' + batchResultId);
+						$location.url('/results/batch/' + batchResultId);
+					});
+				}
+			});
 		},
 
 		setTestTreeAccess: function(access)
 		{
 			testTreeAccess = access;
+		},
+
+		getTestTreeAccess: function()
+		{
+			return testTreeAccess;
 		},
 
 		testTreeSelectionType: function(event)
@@ -235,6 +290,110 @@ angular.module('cherry.testLaunch', [])
 			else
 				delete $scope.deviceError[deviceId];
 		}
+	});
+}])
+
+.controller('TestSetSelectCtrl', ['$scope', 'rtdb', 'rpc', function($scope, rtdb, rpc)
+{
+	rtdb.bind('TestSetList', 'testSetList', $scope, { valueName: 'testSets' });
+
+	angular.extend($scope,
+	{
+		selectedSetHeader: 		undefined,
+		editableTestSetName: 	undefined,
+		uploadFilterFile: 		[],
+
+		selectTestSet: function(testSet)
+		{
+			if (!testSet || (!!$scope.selectedSetHeader && testSet.id === $scope.selectedSetHeader.id))
+			{
+				$scope.selectedSetHeader		 = undefined;
+				$scope.$parent.selectedTestSetId = undefined;
+				$scope.editableTestSetName		 = undefined;
+			}
+			else
+			{
+				$scope.selectedSetHeader		 = testSet;
+				$scope.$parent.selectedTestSetId = testSet.id;
+				$scope.editableTestSetName		 = $scope.selectedSetHeader.name;
+			}
+		},
+
+		clearTestSetUploadFields: function()
+		{
+			$scope.editableTestSetName	= undefined;
+			$scope.uploadFilterFile		= [];
+		},
+
+		makeUploadFailureNotification: function(setName)
+		{
+			var name = setName;
+			return function() {
+				alert("Uploading test set '" + name + "' failed");
+				$scope.uploadFinished();
+			};
+		},
+
+		uploadTestSet: function()
+		{
+			if (!$scope.editableTestSetName || $scope.uploadFilterFile[0] == null)
+				return;
+
+			console.log("Uploading test set: " + $scope.editableTestSetName);
+
+			var formData	= new FormData();
+			var setName		= $scope.editableTestSetName;
+			var filterFile	= $scope.uploadFilterFile[0];
+
+			formData.append("set-name", setName);
+			formData.append("set-filters", filterFile);
+
+			$.ajax({
+				type:			'POST',
+				url:			'/importTestSet/',
+				beforeSend:		$scope.uploadStarted,
+				success:		$scope.uploadFinished,
+				error:			$scope.makeUploadFailureNotification(setName),
+				data:			formData,
+				cache:			false,
+				contentType:	false,
+				processData:	false,
+			});
+
+			$scope.clearTestSetUploadFields();
+		},
+
+		deleteTestSet: function(testSet)
+		{
+			if (confirm('Really delete test set "' + $scope.selectedSetHeader.name + '"?'))
+			{
+				var setId = $scope.selectedSetHeader.id
+				rpc.call('rtdb.DeleteTestSet', setId)
+				.then(function()
+				{
+					console.log('deleted test set: ' + setId);
+				},
+				function()
+				{
+					alert("Test set deletion failed!");
+				});
+
+				// Immediately de-select test set to discourage interacting with it before delete is complete.
+				$scope.selectTestSet(undefined);
+			}
+		},
+
+		initTestSetCtrl: function()
+		{
+		},
+		// Test set todos:
+		// - Button text 'Add' vs. 'Update' when existing selected, i.e., change text based on action
+		// - Rename choose files
+		// - Visualization of filters
+		// - Wildcards (expand against local tree or executable tree?)
+		// - Enable uploading new set of filters?
+		// - Interactive editing of filters?
+		// - What to do with the 'Additional tests' field? Move under the tree select tab? Concatenate with the test set filter list?
 	});
 }])
 

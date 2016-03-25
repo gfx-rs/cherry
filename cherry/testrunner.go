@@ -69,7 +69,6 @@ type TestRunner struct {
 	// \todo [petri] these should be dynamic, not loaded at init time!
 	testPackages		map[string]TestPackageInfo
 	fullTestCaseList	[]string
-
 	// Control channel for batch executions, read in runner.handleQueue().
 	queueControl		chan<- batchExecQueueControl
 
@@ -695,6 +694,23 @@ func (runner *TestRunner) ExecuteTestBatch (batchName string, batchParams BatchE
 	log.Printf("[runner] filtered from %d cases to %d\n", len(runner.fullTestCaseList), len(testCasePaths))
 
 	return runner.ExecuteTestBatchWithCaseList(batchName, batchParams, timestamp, testCasePaths)
+}
+
+func (runner *TestRunner) ExecuteTestBatchWithTestSet (batchName string, batchParams BatchExecParams, timestamp time.Time, testSetId string) (string, error) {
+	var testSet TestSet
+	err := runner.rtdbServer.GetObject(testSetId, &testSet)
+	log.Printf("Start test set '%s' with %d filters.\n", testSetId, len(testSet.Filters))
+	if err != nil {
+		panic(err)
+	}
+	for ndx, filter := range(testSet.Filters) {
+		if ndx > 5 {
+			log.Printf("...")
+			break
+		}
+		log.Printf("   Filter: '%s'", filter)
+	}
+	return runner.ExecuteTestBatchWithCaseList(batchName, batchParams, timestamp, testSet.Filters)
 }
 
 // Create a new batch, with a specific case list and no regard to batchParams.TestNameFilters, and start executing asynchronously.

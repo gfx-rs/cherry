@@ -32,6 +32,8 @@ import (
 	"time"
 	"strconv"
 	"io"
+	"io/ioutil"
+	"strings"
 )
 
 var rtdbServer	*rtdb.Server
@@ -295,6 +297,79 @@ func importHandler (response http.ResponseWriter, request *http.Request) {
 	}
 }
 
+// Garbage in, strings split by newlines and comments removed out.
+func splitAndTrimTestSetFilters (setFilters string) []string {
+	cleanFilters := make([]string, 0)
+	commentEraser := regexp.MustCompile(`#.*$`)
+
+	for _, filter := range strings.Split(strings.Replace(setFilters,"\r\n","\n", -1), "\n") {
+		noComments := commentEraser.ReplaceAllString(filter, "")
+		clean := strings.TrimSpace(noComments)
+		if len(clean) > 0 {
+			cleanFilters = append(cleanFilters, clean)
+		}
+	}
+	return cleanFilters
+}
+
+func importTestSetHandler (response http.ResponseWriter, request *http.Request) {
+	if request.Method != "POST" || request.RequestURI != "/importTestSet/" {
+		http.Error(response, "Invalid request", 400)
+		return
+	}
+
+	parts, err := request.MultipartReader()
+	if err != nil {
+		http.Error(response, "Expected a multipart upload", 400)
+		return
+	}
+
+	log.Printf("[test set import] Received request with Content-Length %d\n", request.ContentLength)
+
+	anyImportFailed := false
+
+	var setName string
+	var setFilters string
+
+	for {
+		part, err := parts.NextPart();
+		if err != nil {
+			break
+		}
+
+		data, err := ioutil.ReadAll(part)
+		if err != nil {
+			log.Printf("[test set import] Reading upload failed with error %v\n", err)
+			anyImportFailed = true
+		} else {
+			switch part.FormName() {
+			case "set-name":
+				setName = string(data)
+			case "set-filters":
+				setFilters = string(data)
+			}
+		}
+		part.Close()
+	}
+
+	request.Body.Close()
+
+	filterList := splitAndTrimTestSetFilters(setFilters)
+	if !anyImportFailed && len(setName) > 0 && len(filterList) > 0 {
+		err = cherry.AddTestSet(rtdbServer, setName, filterList)
+		if err != nil {
+			log.Printf("[test set import] Import failed with error %v\n", err)
+			http.Error(response, "Import failed", 500)
+		} else {
+			log.Printf("[test set import] Imported test set %s with %d filters\n", setName, len(filterList))
+			response.WriteHeader(http.StatusOK)
+		}
+	} else {
+		log.Printf("[test set import] Tried to import empty filter set or empty set name or other failure.\n")
+		http.Error(response, "Import failed", 500)
+	}
+}
+
 // Mapping of third party locations to desired server locations
 // This allows us to remap the locations for release packages or when versions change
 func setUpFileMappings() {
@@ -375,6 +450,7 @@ func main () {
 	http.HandleFunc("/executionLog/", executionLogExportHandler)
 	http.HandleFunc("/export/", exportHandler)
 	http.HandleFunc("/import/", importHandler)
+	http.HandleFunc("/importTestSet/", importTestSetHandler)
 
 	// Fire up http server!
 	addr := fmt.Sprintf("127.0.0.1:%d", *port)

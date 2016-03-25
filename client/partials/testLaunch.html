@@ -200,44 +200,93 @@ limitations under the License.
 
 			<form id="testCaseSelection" class="form-horizontal">
 				<div class="row form-group">
-					<div class="col-md-offset-2 col-md-8">
-						<div class="panel panel-default">
-							<div class="panel-heading">
-								<span class="test-path-filter-input-container">
-									<input id="testCasePathFilter" type="text" placeholder="Path filter" class="form-control input-sm test-path-filter-input" ng-model="testCasePathFilter" />
-								</span>
-							</div>
-							<div class="panel-body test-launch-tree-container" style="overflow-y:scroll;">
-								<div class="tree-border">
-									<!-- \todo [nuutti 14-08-2014] Shift-click selection annoyingly hilights the text.
-											   Do something so that doesn't happen. Funnily, doesn't seem to happen
-											   with <a> elements with href (on most browsers at least). -->
-									<treecontrol class="tree-light" tree-model="fullTestCaseTree" tree-selectable="{selectionType:testTreeSelectionType, setAccess:setTestTreeAccess}">
-										{{ node.label }}
-									</treecontrol>
+					<div class="container">
+						<div class="row form-group">
+							<div class="col-md-8 col-md-offset-1">
+								<ul class="nav nav-tabs">
+									<li class="clickable" ng-class="{active:activeSelectorTab==='tree'}"><a ng-click="setSelectorTab('tree')">Select</a></li>
+									<li class="clickable" ng-class="{active:activeSelectorTab==='sets'}"><a ng-click="setSelectorTab('sets')">Test sets</a></li>
+								</ul>
+								<div class="tab-content">
+									<div id="select" class="tab-pane" ng-class="{active:activeSelectorTab==='tree'}">
+										<div class="panel panel-default">
+											<div class="panel-heading">
+												<span class="test-path-filter-input-container">
+													<input id="testCasePathFilter" type="text" placeholder="Path filter" class="form-control input-sm test-path-filter-input" ng-model="testCasePathFilter" />
+												</span>
+											</div>
+											<div class="panel-body test-launch-tree-container" style="overflow-y:scroll;">
+												<div class="tree-border">
+													<!-- \todo [nuutti 14-08-2014] Shift-click selection annoyingly hilights the text.
+														 Do something so that doesn't happen. Funnily, doesn't seem to happen
+														 with <a> elements with href (on most browsers at least). -->
+													<treecontrol class="tree-light" tree-model="fullTestCaseTree" tree-selectable="{selectionType:testTreeSelectionType, setAccess:setTestTreeAccess}">
+														{{ node.label }}
+													</treecontrol>
+												</div>
+											</div>
+										</div>
+									</div>
+									<div id="testsets" class="tab-pane" ng-class="{active:activeSelectorTab==='sets'}" ng-controller="TestSetSelectCtrl" ng-init="initTestSetCtrl()">
+										<div style="margin-top: 8px;">
+											<span class="clickable" id="expandButton" ng-click="isOpen = !isOpen">
+												Manage sets
+												<i class="glyphicon" ng-class="{'glyphicon-chevron-down': isOpen, 'glyphicon-chevron-right': !isOpen}"></i>
+											</span>
+										</div>
+										<div class="panel-collapse" collapse="!isOpen">
+											<div class="panel-body test-set-panel">
+												<form enctype="multipart/form-data">
+													<div class="row controller-row">
+														<div class="col-md-6">
+															<input id="editableTestSetName" type="text" placeholder="Test set name" class="form-control input" ng-model="editableTestSetName" /> <!-- Separate editable name from selected set name -->
+														</div>
+														<div class="col-md-6">
+															<input id="selectedFilterFile" file-model="uploadFilterFile" type="file" multiple>
+														</div>
+													</div>
+													<div class="row">
+														<div class="col-md-2">
+															<button id="addTestSetButton" type="button" class="btn btn-primary btn-block btn-test-set" ng-click="uploadTestSet()" ng-disabled="!editableTestSetName">Add</button>
+														</div>
+														<div class="col-md-2">
+															<button id="deleteTestSetButton" type="button" class="btn btn-primary btn-block btn-test-set" ng-click="deleteTestSet(selectedTestSet)" ng-disabled="!selectedSetHeader">Delete</button>
+														</div>
+													</div>
+												</form>
+											</div>
+										</div>
+										<div class="panel panel-default">
+											<div class="panel-body test-launch-tree-container" style="overflow-y:scroll;">
+												<div ng-repeat="testSet in testSets.testSetHeaders" class="clickable tree-label" ng-click="selectTestSet(testSet)" >
+													<span ng-class="{'selected-test-set':selectedSetHeader.id===testSet.id}">{{ testSet.name }} </span>
+												</div>
+											</div>
+										</div>
+									</div>
 								</div>
 							</div>
 						</div>
-					</div>
-				</div>
-
-				<div class="row form-group">
-					<label class="col-md-2 control-label" for="testNameFilters">Additional Tests:</label>
-					<div class="col-md-8">
-						<input id="testNameFilters" type="text" class="form-control input-md" ng-model="testNameFilters" />
+						<div class="row form-group">
+							<label class="col-md-2 control-label" for="testNameFilters">Additional Tests:</label>
+						</div>
+						<div class="row form-group">
+							<div class="col-md-7 col-md-offset-1">
+								<input id="testNameFilters" type="text" class="form-control input-md" ng-model="testNameFilters" />
+							</div>
+						</div>
+						<!-- Execute button -->
+						<div class="pull-right clearfix">
+							<!-- \todo [petri] disable button selected device if not properly configured? -->
+							<button id="executeButton" class="btn btn-lg btn-success" ng-disabled="!canExecuteTestBatch()" ng-click="executeTestBatch()">Execute Tests!</button>
+						</div>
+						<!-- \todo [petri] kludge to add a bit of margin below button -->
+						<br />
 					</div>
 				</div>
 			</form>
-
-			<!-- Execute button -->
-			<div class="pull-right clearfix">
-				<!-- \todo [petri] disable button selected device if not properly configured? -->
-				<button id="executeButton" class="btn btn-lg btn-success" ng-disabled="selectedDeviceId===undefined" ng-click="executeTestBatch()">Execute Tests!</button>
-			</div>
-
-			<!-- \todo [petri] kludge to add a bit of margin below button -->
-			<br />
 		</div>
 	</div>
+</div>
 
 </div>

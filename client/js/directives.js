@@ -149,6 +149,24 @@ angular.module('cherry.directives', [])
 	}
 })
 
+.directive('fileModel', function($compile)
+{
+	return {
+		restrict:	'A',
+		link:		function(scope, elem, attrs)
+		{
+			elem.attr('onchange', 'angular.element(this).scope().' + attrs.fileModel + ' = this.files;');
+			scope.$watch(attrs.fileModel, function(file) {
+				if (typeof file === "undefined" || file.length == 0)
+				{
+					// File input can only be cleared programmatically.
+					elem.val("");
+				}
+			});
+		}
+	}
+})
+
 .directive('onOffButtonModel', function($compile)
 {
 	return {

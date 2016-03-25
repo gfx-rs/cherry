@@ -286,6 +286,9 @@ type BatchExecParams struct {
 	TestBinaryCommandLine	string		`json:"testBinaryCommandLine"`
 	TestBinaryWorkingDir	string		`json:"testBinaryWorkingDir"`
 
+	// \todo [2017-05-18 kraita]: This field is relevant for 1/3 batch
+	// launch types. I didn't find any code actually reading the field
+	// from the DB for anything useful. Should nuke the field altogether.
 	TestNameFilters			[]string	`json:"testNameFilters"`	// Filters for test case names (only execute matching).
 }
 
@@ -526,6 +529,77 @@ func (list *ActiveBatchResultList) Clear () error {
 	return nil
 }
 
+// TestSetHeader
+type TestSetHeader struct {
+	Id			string			`json:"id"`
+	Name		string			`json:"name"`
+}
+
+func (header *TestSetHeader) PostLoad () {
+}
+
+func (testSet *TestSetHeader) Init (src TestSetHeader) error {
+	*testSet = src
+	return nil
+}
+
+// TestSet
+type TestSet struct {
+	Id			string			`json:"id"`
+	Name		string			`json:"name"`
+	Filters		[]string		`json:"filters"`
+}
+
+func (testSet *TestSet) PostLoad () {
+	if testSet.Filters == nil {
+		testSet.Filters = make([]string, 0)
+	}
+}
+
+func (testSet *TestSet) Init (src TestSet) error {
+	*testSet = src
+	return nil
+}
+
+func (device *TestSet) Delete () error {
+	log.Printf("\\todo [kraita] implement rtdb delete operation!\n")
+	return nil
+}
+
+// TestSetList
+type TestSetList struct {
+	TestSetHeaders	[]TestSetHeader	`json:"testSetHeaders"`
+}
+
+func (list *TestSetList) PostLoad () {
+	if list.TestSetHeaders == nil {
+		list.TestSetHeaders = make([]TestSetHeader, 0)
+	}
+}
+
+func (list *TestSetList) Init () error {
+	if list.TestSetHeaders == nil {
+		list.TestSetHeaders = make([]TestSetHeader, 0)
+	}
+	log.Printf("TestSetList.Init(): Loaded %d\n", len(list.TestSetHeaders))
+	return nil
+}
+
+func (list *TestSetList) Append (setHeader TestSetHeader) error {
+	list.TestSetHeaders = append(list.TestSetHeaders, setHeader)
+	return nil
+}
+
+func (list *TestSetList) Remove (testSetId string) error {
+	for ndx, header := range list.TestSetHeaders {
+		if header.Id == testSetId {
+			list.TestSetHeaders = append(list.TestSetHeaders[:ndx], list.TestSetHeaders[ndx+1:]...)
+			return nil
+		}
+	}
+	return fmt.Errorf("[data] WARNING: trying to remove unknown test set '%s' from the test set list", testSetId)
+}
+
 // DeviceBatchQueue
 
 type DeviceBatchQueue struct {
@@ -678,6 +752,9 @@ var (
 	typeDeviceBatchQueueList		= reflect.TypeOf((*DeviceBatchQueueList)(nil)).Elem()
 	typeADBDeviceConnectionList		= reflect.TypeOf((*ADBDeviceConnectionList)(nil)).Elem()
 	typeCherryObjectSchemaVersion	= reflect.TypeOf((*CherryObjectSchemaVersion)(nil)).Elem()
+	typeTestSetHeader				= reflect.TypeOf((*TestSetHeader)(nil)).Elem()
+	typeTestSet						= reflect.TypeOf((*TestSet)(nil)).Elem()
+	typeTestSetList					= reflect.TypeOf((*TestSetList)(nil)).Elem()
 )
 
 // Return all RTDB object types used by Cherry.
@@ -699,6 +776,9 @@ func GetObjectTypes () []reflect.Type {
 		typeDeviceBatchQueueList,
 		typeADBDeviceConnectionList,
 		typeCherryObjectSchemaVersion,
+		typeTestSetHeader,
+		typeTestSet,
+		typeTestSetList,
 	}
 }
 
@@ -719,9 +799,10 @@ func InitDB (rtdbServer *rtdb.Server) {
 	// Initialize empty active & full batch result lists, as well as device batch queue list.
 	{
 		opSet := rtdb.NewOpSet()
-		opSet.Call(typeBatchResultList, "batchResultList",				"Init")
-		opSet.Call(typeActiveBatchResultList, "activeBatchResultList",	"Init")
-		opSet.Call(typeDeviceBatchQueueList, "deviceBatchQueueList",	"Init")
+		opSet.Call(typeBatchResultList,			"batchResultList",			"Init")
+		opSet.Call(typeActiveBatchResultList,	"activeBatchResultList",	"Init")
+		opSet.Call(typeDeviceBatchQueueList,	"deviceBatchQueueList",		"Init")
+		opSet.Call(typeTestSetList,				"testSetList",				"Init")
 		err := rtdbServer.ExecuteOpSet(opSet)
 		if err != nil { panic(err) }
 	}

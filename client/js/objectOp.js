@@ -371,5 +371,27 @@ function copyProperties(dst, src)
 				value.connections.push(connection);
 			}
 		},
+
+		// TestSetList
+		TestSetList:
+		{
+			Append: function(value, setHeader)
+			{
+				value.testSetHeaders.push(setHeader)
+			},
+
+			Remove: function(value, testSetId)
+			{
+				for (var ndx = 0; ndx < value.testSetHeaders.length; ndx++)
+				{
+					var set = value.testSetHeaders[ndx];
+					if (set.id == testSetId)
+					{
+						value.testSetHeaders.splice(ndx, 1);
+						return;
+					}
+				}
+			}
+		},
 	};
 })(typeof exports === 'undefined' ? this['objectop'] = {} : exports);

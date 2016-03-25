@@ -14,6 +14,17 @@
 
 'use strict';
 
+// Function to load a test set.
+function loadTestSet(rpc, testSetToLoad)
+{
+	var testSet = testSetToLoad; // Note: Closure for the then call.
+	rpc.call('rtdb.GetTestSetFilters', {testSetName:testSet.name})
+	.then(function(paths)
+	{
+	  testSet.paths = paths;
+	});
+}
+
 // Controllers
 
 angular.module('cherry.controllers', [])
@@ -26,6 +37,7 @@ angular.module('cherry.controllers', [])
 	rtdb.prefetch('DeviceConfigList', 'deviceConfigList', $scope);
 	rtdb.prefetch('BatchResultList', 'batchResultList', $scope);
 	rtdb.prefetch('ActiveBatchResultList', 'activeBatchResultList', $scope);
+	rtdb.prefetch('TestSetList', 'testSetList', $scope);
 
 	var numActiveUploads = 0;
 	angular.extend($scope,

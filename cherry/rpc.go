@@ -81,52 +81,55 @@ func (handler *RPCHandler) Unsubscribe (client *RPCClient, args UnsubscribeArgs)
 }
 
 // ExecuteTestBatch
-// \todo [petri] replace most of this struct with references to relevant places?
 
+type DeviceConfigArgs struct {
+	TargetAddress			string					`json:"targetAddress"`
+	TargetPort				int						`json:"targetPort"`
+	SpawnLocalProcess		string					`json:"spawnLocalProcess"`
+	DeviceId				string					`json:"deviceId"`
+}
+
+type TestPackageConfigArgs struct {
+	TestBinaryName			string					`json:"testBinaryName"`
+	TestBinaryCommandLine	string					`json:"testBinaryCommandLine"`
+	TestBinaryWorkingDir	string					`json:"testBinaryWorkingDir"`
+}
+
+// \todo [2017-03-15 kraita] Embedded structs could be replaced by object references?
 type ExecuteTestBatchArgs struct {
-	// Device config.
-	TargetAddress			string	`json:"targetAddress"`
-	TargetPort				int		`json:"targetPort"`
-	SpawnLocalProcess		string	`json:"spawnLocalProcess"`
-	DeviceId				string	`json:"deviceId"`
+	DeviceConfig			DeviceConfigArgs		`json:"deviceConfig"`
+	TestPackageConfig 		TestPackageConfigArgs	`json:"testPackageConfig"`
+	TestNameFilters			string					`json:"testNameFilters"`
+}
 
-	// Test package config.
-	TestBinaryName			string	`json:"testBinaryName"`
-	TestBinaryCommandLine	string	`json:"testBinaryCommandLine"`
-	TestBinaryWorkingDir	string	`json:"testBinaryWorkingDir"`
-
-	// Test set config.
-	TestNameFilters			string	`json:"testNameFilters"`
+func getDefaultBatchName () string {
+	return time.Now().Format(defaultHumanReadableTimeFormat)
 }
 
 func (handler *RPCHandler) ExecuteTestBatch (client *RPCClient, args ExecuteTestBatchArgs) (string, error) {
 	log.Println("[rpc] ExecuteTestBatch requested")
 
 	// Check that the specified device exists.
-	err := handler.rtdbServer.GetObject(args.DeviceId, &DeviceConfig{})
+	err := handler.rtdbServer.GetObject(args.DeviceConfig.DeviceId, &DeviceConfig{})
 	if err != nil { return "", err }
 
 	// Generate time-based id for batch result.
 	startTime := time.Now()
-	batchResultName := startTime.Format(defaultHumanReadableTimeFormat)
 
 	// Execute tests in background.
 	execParams := BatchExecParams {
-		// device
-		TargetAddress:			args.TargetAddress,
-		TargetPort:				args.TargetPort,
-		SpawnLocalProcess:		args.SpawnLocalProcess,
-		DeviceId:				args.DeviceId,
+		TargetAddress:			args.DeviceConfig.TargetAddress,
+		TargetPort:				args.DeviceConfig.TargetPort,
+		SpawnLocalProcess:		args.DeviceConfig.SpawnLocalProcess,
+		DeviceId:				args.DeviceConfig.DeviceId,
 
-		// test package
-		TestBinaryName:			args.TestBinaryName,
-		TestBinaryCommandLine:	args.TestBinaryCommandLine,
-		TestBinaryWorkingDir:	args.TestBinaryWorkingDir,
+		TestBinaryName:			args.TestPackageConfig.TestBinaryName,
+		TestBinaryCommandLine:	args.TestPackageConfig.TestBinaryCommandLine,
+		TestBinaryWorkingDir:	args.TestPackageConfig.TestBinaryWorkingDir,
 
-		// tests
 		TestNameFilters:		strings.Split(args.TestNameFilters, ";"),
 	}
-	batchResultId, err := handler.testRunner.ExecuteTestBatch(batchResultName, execParams, startTime)
+	batchResultId, err := handler.testRunner.ExecuteTestBatch(getDefaultBatchName(), execParams, startTime)
 	if err != nil { return "", err }
 
 	return batchResultId, nil
@@ -151,17 +154,55 @@ func (handler *RPCHandler) ExecuteSubTestBatch (client *RPCClient, args ExecuteS
 	err = handler.rtdbServer.GetObject(args.OriginalBatchResultId, &originalCaseList)
 	if err != nil { return "", err }
 
-	// Generate time-based id for batch result.
 	startTime := time.Now()
-	batchResultName := startTime.Format(defaultHumanReadableTimeFormat)
 
 	testCasePaths := filterTestCaseNames(originalCaseList.Paths, strings.Split(args.TestNameFilters, ";"))
 
-	batchResultId, err := handler.testRunner.ExecuteTestBatchWithCaseList(batchResultName, original.ExecParams, startTime, testCasePaths)
+	batchResultId, err := handler.testRunner.ExecuteTestBatchWithCaseList(getDefaultBatchName(), original.ExecParams, startTime, testCasePaths)
 	if err != nil { return "", err }
 
 	return batchResultId, nil
 }
+
+type ExecuteTestSetArgs struct {
+	DeviceConfig		DeviceConfigArgs		`json:"deviceConfig"`
+	TestPackageConfig 	TestPackageConfigArgs	`json:"testPackageConfig"`
+	TestSetId			string					`json:"testSetId"`
+}
+
+func (handler *RPCHandler) ExecuteTestSet (client *RPCClient, args ExecuteTestSetArgs) (string, error) {
+	log.Println("[rpc] ExecuteTestSet requested")
+
+	// Check that the specified device exists.
+	err := handler.rtdbServer.GetObject(args.DeviceConfig.DeviceId, &DeviceConfig{})
+	if err != nil { return "", err }
+
+	startTime := time.Now()
+
+	// Execute tests in background.
+	execParams := BatchExecParams {
+		TargetAddress:			args.DeviceConfig.TargetAddress,
+		TargetPort:				args.DeviceConfig.TargetPort,
+		SpawnLocalProcess:		args.DeviceConfig.SpawnLocalProcess,
+		DeviceId:				args.DeviceConfig.DeviceId,
+
+		TestBinaryName:			args.TestPackageConfig.TestBinaryName,
+		TestBinaryCommandLine:	args.TestPackageConfig.TestBinaryCommandLine,
+		TestBinaryWorkingDir:	args.TestPackageConfig.TestBinaryWorkingDir,
+
+		TestNameFilters:		make([]string, 0),
+	}
+
+	// Test sets can have some tens of MBs data. Should not load the
+	// full test set in the server thread. Passing the test set ID to
+	// the runner instead.
+	log.Printf("Requesting execution of test set: %s", args.TestSetId)
+	batchResultId, err := handler.testRunner.ExecuteTestBatchWithTestSet(getDefaultBatchName(), execParams, startTime, args.TestSetId)
+	if err != nil { return "", err }
+
+	return batchResultId, nil
+}
+
 
 // WouldQueueWithOnlyDifferentDevices
 
@@ -348,5 +389,15 @@ func (handler *RPCHandler) GetVersionViewedObjects (client *RPCClient, args GetV
 // GetTestCaseList
 
 func (handler *RPCHandler) GetTestCaseList (client *RPCClient, args struct{}) ([]string, error) {
-	return handler.testRunner.fullTestCaseList, nil
+    return handler.testRunner.fullTestCaseList, nil
+}
+
+// Delete TestSet
+
+func (handler *RPCHandler) DeleteTestSet (client *RPCClient, testSetId string) (bool, error) {
+	opSet := rtdb.NewOpSet()
+	opSet.Delete(typeTestSet, testSetId)
+	opSet.Call(typeTestSetList, "testSetList", "Remove", testSetId)
+	err := handler.rtdbServer.ExecuteOpSet(opSet)
+	return err == nil, err
 }
