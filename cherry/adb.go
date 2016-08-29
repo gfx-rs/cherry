@@ -292,7 +292,7 @@ func StartADBDeviceListPoller (rtdbServer *rtdb.Server, interval time.Duration) 
 									ADBSerialNumber:	newInfo.serialNumber,
 									Name:				modelName,
 									TargetAddress:		"127.0.0.1",
-									TargetPort:			50016,
+									TargetPort:			51116,
 									CommandLine:		"--deqp-watchdog=enable --deqp-crashhandler=enable",
 								}
 								opSet.Call(typeDeviceConfig, deviceId, "Init", newConfig)
