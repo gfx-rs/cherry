@@ -182,7 +182,7 @@ limitations under the License.
 			<div ng-controller="DeviceConfigCtrl" ng-repeat="connection in adbDeviceConnections.connections" ng-class="{active:selectedDeviceId===connection.deviceId}" class="panel panel-default" ng-init="initADB(connection)">
 				<div class="panel-heading clickable" ng-click="selectDevice(connection.deviceId)" ng-dblclick="isOpen = !isOpen">
 					<h4 class="panel-title">
-						<b>{{ value.name || 'Unknown device (' + value.adbSerialNumber + ')' }}</b>
+						<b>{{ value.name || 'Unknown device' }}</b> ({{ value.adbSerialNumber || '' }})
 						- <span ng-class="connection.state | adbDeviceStateClass">{{ connection.state | adbDeviceStateHumanReadable }}</span>
 
 						<div id="expandButton" class="pull-right" ng-click="isOpen = !isOpen">
