@@ -844,6 +844,7 @@ func (runner *TestRunner) ImportBatch (batchResultDefaultName string, qpaReader 
 	qpaParser			:= CreateLogContainerParser(qpaParserQueue)
 	countingQpaReader	:= NewCountingReader(qpaReader)
 	scanner				:= bufio.NewScanner(countingQpaReader)
+	scanner.Buffer(nil, 256*1024)
 
 	// Initialize batch result and root group. Add to batch result list.
 	{
