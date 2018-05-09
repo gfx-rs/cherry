@@ -816,9 +816,12 @@ func InitDB (rtdbServer *rtdb.Server) {
 				TargetPort:			50016,
 				CommandLine:		"--deqp-watchdog=enable --deqp-crashhandler=enable --deqp-visibility=hidden --deqp-gl-config-name=rgba8888d24s8ms0",
 
-				LocalProcessPath:	"../candy-build/deqp-wgl/execserver/Release/execserver.exe",
-				BinaryPath:			"Debug/${TestPackageName}.exe",
-				WorkingDir:			"../candy-build/deqp-wgl/modules/${TestPackageDir}",
+				//LocalProcessPath:	"../candy-build/deqp-wgl/execserver/Release/execserver.exe",
+				//BinaryPath:			"Debug/${TestPackageName}.exe",
+				//WorkingDir:			"../candy-build/deqp-wgl/modules/${TestPackageDir}",
+				LocalProcessPath:	"../VK-GL-CTS/build/execserver/execserver",
+				BinaryPath:			"deqp-vk",
+				WorkingDir:			"../VK-GL-CTS/build/external/vulkancts/modules/vulkan",
 			},
 		}
 
