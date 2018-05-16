@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"log"
 	"reflect"
+	"runtime"
 	"time"
 	"../rtdb"
 )
@@ -815,7 +816,6 @@ func InitDB (rtdbServer *rtdb.Server) {
 				TargetAddress:		"127.0.0.1",
 				TargetPort:			50016,
 				CommandLine:		"--deqp-watchdog=enable --deqp-crashhandler=enable --deqp-visibility=hidden --deqp-gl-config-name=rgba8888d24s8ms0",
-
 				//LocalProcessPath:	"../candy-build/deqp-wgl/execserver/Release/execserver.exe",
 				//BinaryPath:			"Debug/${TestPackageName}.exe",
 				//WorkingDir:			"../candy-build/deqp-wgl/modules/${TestPackageDir}",
@@ -823,6 +823,11 @@ func InitDB (rtdbServer *rtdb.Server) {
 				BinaryPath:			"deqp-vk",
 				WorkingDir:			"../VK-GL-CTS/build/external/vulkancts/modules/vulkan",
 			},
+		}
+
+		if runtime.GOOS == "windows" {
+			devices[0].LocalProcessPath = "../VK-GL-CTS/build/execserver/Debug/execserver.exe"
+			devices[0].BinaryPath = "Debug/deqp-vk.exe"
 		}
 
 		// Initialize device config list.
